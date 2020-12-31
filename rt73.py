@@ -429,8 +429,8 @@ def decompileCodeplug(data):
     if zone_start_address % 1024 != 0:
         zone_start_address += 1024 - zone_start_address%1024
     
-    print ("Zones:" + str(num_zones) + " start address " + hex(zone_start_address))
-    print ("Contact:"  + str(num_contacts) + " start address: " + hex(contact_start_address))
+    debugMsg(4, "Zones:" + str(num_zones) + " start address " + hex(zone_start_address))
+    debugMsg(4, "Contact:"  + str(num_contacts) + " start address: " + hex(contact_start_address))
 
     # Start the parsing
     p = Parser()
@@ -523,7 +523,7 @@ def decompileCodeplug(data):
         #This is the number of bytes to offset from the start of the zone_start_address where these channels begin
         channels_offset = int.from_bytes(zone_data[0x0D:0x0D + 2], byteorder="little")
 
-        print("Zone " + parsed_zone["Name"] + " - channel offset  as " + hex(channels_offset))
+        debugMsg(4, "Zone " + parsed_zone["Name"] + " - channel offset  as " + hex(channels_offset))
         channels_offset = (channels_offset -1) * 32
         # Add an array for the channels
         parsed_zone["Channels"] = []
@@ -606,7 +606,7 @@ def compileCodeplug(data):
         
     #Write in the quick messages
     for i in range (len(codeplug["Quick messages"])):
-        print ("Parsing message " + codeplug["Quick messages"][i])
+        debugMsg(4, "Parsing message " + codeplug["Quick messages"][i])
         #Calculate whether this message will go into block 1 or block 2
         if i < message_block_1_count:
             start_address = message_block_1_start_addr + (i*message_record_size)
@@ -662,7 +662,7 @@ def compileCodeplug(data):
         for j in range(count):
             channel_offset += len(codeplug["Zones"][j]["Channels"])
                 
-        print("Channel offset for " + i["Name"] + " was " + hex(channel_offset))
+        debugMsg(4, "Channel offset for " + i["Name"] + " was " + hex(channel_offset))
         zone_record = bytearray(zone_record_size)
             
         p.toBytes(zone_record,zone_info, i)
@@ -678,7 +678,7 @@ def compileCodeplug(data):
     count = 0
     for i in codeplug["Zones"]:
         for channel in i["Channels"]:
-            print("Writing channel " + str(channel["ID"]) + " - " + channel["Name"] + " to address : " + hex(channel_start_address + (channel_record_size * count)))
+            debugMsg(4, "Writing channel " + str(channel["ID"]) + " - " + channel["Name"] + " to address : " + hex(channel_start_address + (channel_record_size * count)))
             #Need to turn the CTCSS/DCS code values back into the enumerated constant.
             if channel["Tone Type Tx"] == "CTCSS":
                 channel["Tone Tx"] = CTCSS_Tones.index(channel["Tone Tx"])
@@ -796,8 +796,12 @@ def uploadFirmware(serialdevice, data):
             #raise RunTimeException("Unexpected response from radio - " + bytes.decode('ascii'))
 
 
-#Script begins here
+def debugMsg(level, message):
+    if level <= debug_level:
+        print(message)
 
+# Script begins here
+debug_level = 0
 default_serial_device = ""
 
 if platform.system() == "Linux":
@@ -817,6 +821,7 @@ parser.add_argument('--device', default = default_serial_device, help = "Specify
 parser.add_argument('--debuglevel', default='0', type = int, nargs = 1, help="Debug level (0 = default, 4 = max)")
 args = parser.parse_args()
 
+debug_level = args.debuglevel
 
 if args.action == "download":
     data = downloadCodeplug(args.device)
