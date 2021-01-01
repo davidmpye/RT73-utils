@@ -115,8 +115,8 @@ Button_IDs = {
     0x37: "UP",
     0x38: "DOWN",
     0x39: "BACK",
-    0x3A: "A_B_TOGGLE",
-    0x3B: "DQT_QT",
+    0x3A: "DQT_QT",
+    0x3B: "A_B_TOGGLE",
     0x3C: "VOL",
     0x3D: "VFO",
     0x3E: "MANDATORY_MONITOR"  #aka promiscuous mode
