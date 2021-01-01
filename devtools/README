@@ -1,0 +1,3 @@
+This python script acts as a 'dummy radio' and was used to reverse engineer the codeplug data sent between the CPS s/w and a 'dummy radio'.
+
+It's a bit rough and ready, most users should ignore it!
