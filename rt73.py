@@ -119,6 +119,7 @@ Button_IDs = {
     0x3B: "DQT_QT",
     0x3C: "VOL",
     0x3D: "VFO",
+    0x3E: "MANDATORY_MONITOR"  #aka promiscuous mode
 }
 
 class Parser:
