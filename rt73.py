@@ -44,6 +44,7 @@ import json
 import serial
 import argparse
 import platform
+import math
 
 #Record sizes (bytes)
 channel_record_size = 32 
@@ -765,9 +766,15 @@ def uploadFirmware(serialdevice, data):
             port.Open()
         print ("Starting firmware flashing process")        
         port.write("Erase".encode('ascii'))
-        port.write(b"\x20\x20\x20\x20\x20\x20\x00\x00\x00\x00\x00\x00\x01\x87")
+        
+        
+        num_blocks = math.ceil(len(data) / 2048)
+        
+        port.write(b"\x20\x20\x20\x20\x20\x20\x00\x00\x00\x00\x00\x00") # \x01\x87")
+        port.write((num_blocks-1).to_bytes(length=2, byteorder='little'))
+ 
         bytes = port.read(41)
-
+        print(bytes)
         # Last section should be "Erase ok"
         if bytes[33:].decode('ascii') == "Erase ok":
             print("Erase OK")
@@ -775,10 +782,12 @@ def uploadFirmware(serialdevice, data):
             print (bytes)
             raise RunTimeException("Erase failed - unexpected response")
 
-        for i in range(392):
+        num_blocks = math.ceil(len(data) / 2048)
+        
+        for i in range(num_blocks):
             block = data[2048*i:2048*(i+1)]
-            print ("Uploading firmware, block " +str(i+1) +" of 392, size " + str(len(block)) + " bytes")
-            if i == 391 and len(block) != 2048:
+            print ("Uploading firmware, block " +str(i+1) +" of " + str(num_blocks)+ ", size " + str(len(block)) + " bytes")
+            if i == num_blocks - 1 and len(block) != 2048:
                 # The final block isn't 2048 bytes long, so pad if necessary
                 print ("Added " + str(2048-len(block)) + " pad bytes")
                 block += b"\x00" * (2048-len(block))
@@ -789,9 +798,10 @@ def uploadFirmware(serialdevice, data):
             if bytes.decode('ascii') == "kyd":
                 print ("OK")
             else:
-                raise RunTimeError("Unexpected response from radio - " + bytes.decode('ascii'))
-
-        bytes = port.read(100)
+                debugMsg(0, "Unexpected response from radio - " + bytes.decode('ascii'))
+                raise RunTimeException("Unexpected response")
+        bytes = port.read(8)
+        print(bytes)
         if bytes[0:8].decode('ascii') == "Checksum":
             #Seems it worked, there always seem to be messages about flash errors even with the proper SW :-O
             print ("Program successful")
