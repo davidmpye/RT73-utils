@@ -715,7 +715,7 @@ def downloadCodeplug(serialdevice):
         
         if debug_level == 4:
             print("Message rx from plug download handshake:")
-            for i in len(response):
+            for i in range(len(response)):
                 print (hex(response[i]))
 
         num_pages = int(response[24])
