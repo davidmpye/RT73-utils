@@ -832,10 +832,11 @@ flash_fw - Upgrade the radio's firmware (radio must be powered on while pressing
 parser.add_argument("filename", type=str, help="Filename to upload, or to save")
 
 parser.add_argument('--device', default = default_serial_device, help = "Specify device to use (default COM1 on Windows, default /dev/ttyUSB0 on Linux")
-parser.add_argument('--debuglevel', default='0', type = int, nargs = 1, help="Debug level (0 = default, 4 = max)")
+parser.add_argument('--debuglevel', default=0, type = int, nargs = 1, help="Debug level (0 = default, 4 = max)")
 args = parser.parse_args()
 
-debug_level = args.debuglevel
+debug_level = args.debuglevel[0]
+print (debug_level)
 
 if args.action == "download":
     data = downloadCodeplug(args.device)
