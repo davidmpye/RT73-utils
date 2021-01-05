@@ -816,7 +816,7 @@ elif platform.system() == "Windows":
 parser = argparse.ArgumentParser(
     description = "Retevis RT73 codeplug/firmware upgrade tool, GNU GPL v3 or later, (C) 2020-21 David Pye davidmpye@gmail.com"
 )
-parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw"], help='''upload - Compile and upload a JSON-formatted file to the radio,
+parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin"], help='''upload - Compile and upload a JSON-formatted file to the radio,
 download - Download and convert the radio's codeplug to a JSON-formatted file,
 flash_fw - Upgrade the radio's firmware (radio must be powered on while pressing P1 and be displaying a grey screen before upload)''')
 parser.add_argument("filename", type=str, help="Filename to upload, or to save")
@@ -843,3 +843,11 @@ elif args.action == "flash_fw":
     f = open(args.filename,'rb')
     fw = f.read()
     uploadFirmware(args.device, fw)
+elif args.action == "download_bin":
+    f = open(args.filename, 'wb')
+    f.write(downloadCodeplug(args.device))
+elif args.action == "upload_bin":
+    f = open(args.filename, 'rb')
+    data = f.read()
+    uploadCodeplug(args.device, data)
+
