@@ -712,6 +712,12 @@ def downloadCodeplug(serialdevice):
         port.write("Flash Read ".encode('ascii'))
         port.write(b"\x00\x3c\x00\x00\x00\x00\x00\x39\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
         response = port.read(103)
+        
+        if debug_level == 4:
+            print("Message rx from plug download handshake:")
+            for i in len(response):
+                print (hex(response[i]))
+
         num_pages = int(response[24])
         print ("Expecting " + str(num_pages) + " pages")
         for i in range(num_pages):
