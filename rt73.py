@@ -587,12 +587,9 @@ def compileCodeplug(data):
     if codeplug_size % 2048 != 0:
         codeplug_size += 2048 - (codeplug_size%2048)
     
-    print("Compiled codeplug of size " + str(codeplug_size))
-
+    debugMsg(2, "Compiled codeplug of size " + str(codeplug_size))
     #Create the 'blank' codeplug   
     template = bytearray(b"\x00" * codeplug_size)
-
-    print ("Now it is " + str(len(template)))
 
     # Write in the counts
     template[zone_count_address:zone_count_address+2] = num_zones.to_bytes(length=2, byteorder='little')
@@ -701,6 +698,11 @@ def compileCodeplug(data):
             template[channel_start_address + (channel_record_size * count) : channel_start_address + (channel_record_size * (count + 1))] = channel_record
             count = count + 1
 
+    if len(template) != codeplug_size:
+        print("Codeplug size has been altered - this is a bug")
+        print("Should be " + str(codeplug_size) + ", was " + len(template))
+        exit(1)
+
     return template
 
 def downloadCodeplug(serialdevice):
@@ -735,8 +737,6 @@ def uploadCodeplug(serialdevice, data):
     if size % 2048 != 0:
         data += (b"\x00" * (2048 - (size%2048)))
 
-    print("Size is " + str(size))
- 
     block_count = int (len(data) / 2048)
     print ("Uploading " + str(block_count) + " pages")
     if block_count > 0xFF:
@@ -843,7 +843,6 @@ parser.add_argument('--debuglevel', default=[0], type = int, nargs = 1, help="De
 args = parser.parse_args()
 
 debug_level = args.debuglevel[0]
-print (debug_level)
 
 if args.action == "download":
     data = downloadCodeplug(args.device)
