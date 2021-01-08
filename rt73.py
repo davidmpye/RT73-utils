@@ -353,7 +353,7 @@ dmr_parameters["DTMF volume (local)"] = [ "MaskNum", 0x1373, 0x0F ] # Vol 0 - 12
 dmr_parameters["DTMF On/off"] = [ "Bitmask", 0x1363, 0x01, { 0x00: "Off", 0x01:"On" } ]
 dmr_parameters["GPS On/off" ] = [ "Bitmask", 0x137A, 0x01, { 0x00: "Off", 0x01:"On" } ]
 dmr_parameters["GPS Interval"] = [ "MaskNum", 0x1353, 0xFF] #10 sec increments from 0 to 6, then mins above that. eg 6 = 1 min, 7 = 2 min.
-#If these are BOTH set of 0xFF, then the radio uses the current channel to send the APRS 'ping' to. 
+#If these are BOTH set of 0xFFFF, then the radio uses the current channel to send the APRS 'ping' to. 
 #Undefined behaviour if current channel doesn't have a default contact set (the CPS software removes the 'current channel' option unless 
 #all channels have a Default Contact specified
 dmr_parameters["GPS Channel group ID"] = [ "Number", 0x1354, 2]  
