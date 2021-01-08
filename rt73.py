@@ -421,7 +421,7 @@ channel_info["Tone Rx"] = [ "Number",0x1B, 1 ]
    
 def decompileCodeplug(data):
     codeplug = {}
-
+    debugMsg(3, "Decompiling codeplug")
     num_channels = int.from_bytes(data[channel_count_address: channel_count_address + channel_count_len],byteorder = 'little')
     num_zones = int.from_bytes(data[zone_count_address: zone_count_address + zone_count_len],byteorder = 'little')
     num_contacts = int.from_bytes(data[contact_count_address: contact_count_address + contact_count_len],byteorder = 'little')
@@ -434,24 +434,33 @@ def decompileCodeplug(data):
     if zone_start_address % 1024 != 0:
         zone_start_address += 1024 - zone_start_address%1024
     
-    debugMsg(4, "Zones:" + str(num_zones) + " start address " + hex(zone_start_address))
-    debugMsg(4, "Contact:"  + str(num_contacts) + " start address: " + hex(contact_start_address))
+    debugMsg(2, "Zones:" + str(num_zones) + ", start address " + hex(zone_start_address))
+    debugMsg(2, "Channels:" + str(num_channels))
+    debugMsg(2, "Contacts:"  + str(num_contacts) + ", start address: " + hex(contact_start_address))
 
     # Start the parsing
     p = Parser()
 
+    debugMsg(2, "Parsing Device info")
     codeplug["Device info"] = p.fromBytes(dev_info,data)
+    debugMsg(2, "Parsing Basic parameters")
     codeplug["Basic parameters"] = p.fromBytes(basic_parameters, data)
+    debugMsg(2, "Parsing Common menu parameters")
     codeplug["Common menu parameters"] = p.fromBytes(common_menu_parameters, data)
+    debugMsg(2, "Parsing Prompt Tone")
     codeplug["Prompt Tone"] = p.fromBytes(prompt_tone_parameters, data)
+    debugMsg(2, "Parsing Indicators")
     codeplug["Indicators"] = p.fromBytes(indicator_parameters, data)
+    debugMsg(2, "Preset buttons")
     codeplug["Preset buttons"] = p.fromBytes(button_preset_parameters, data)
+    debugMsg(2, "Parsing Mic gain")
     codeplug["Mic gain"] = p.fromBytes(mic_gain_parameters, data)
+    debugMsg(2, "Parsing DMR Service")
     codeplug["DMR Service" ] = p.fromBytes(dmr_parameters, data)
 
+    debugMsg(2, "Parsing Quick messages")
     # Quick messages - parsed manually as text items
     codeplug["Quick messages"] = []
-
     for i in range(message_block_1_count + message_block_2_count):
         if i < message_block_1_count:
             start_of_message = message_block_1_start_addr + i*message_record_size
@@ -459,29 +468,23 @@ def decompileCodeplug(data):
             start_of_message = message_block_2_start_addr + (i-message_block_1_count)*message_record_size
         msg_str = data[start_of_message: start_of_message + message_record_size].decode('ascii').rstrip("\x00")
         if msg_str != "":
+            debugMsg(3, "Adding message -" + msg_str)
             codeplug["Quick messages"].append(msg_str)
 
         #Encryption - #WONTDO
         
+    debugMsg(2, "Parsing Contacts")
     codeplug["Contacts"] = []
-    print ("Starting to parse contacts : " + str(num_contacts))
     for i in range(num_contacts):
         contact_data = data[contact_start_address + i*contact_record_size: contact_start_address + (i+1)*contact_record_size]
         parsed_contact = p.fromBytes(contact_parameters, contact_data)
+        debugMsg(3, "Parsed contact - " + str(parsed_contact))
         codeplug["Contacts"].append(parsed_contact)
         
     #Digital alarm list - #TODO
-    codeplug["Digital Alarm List"] = {}
-        
-    # first alarm record starts at 0xE3
-    digital_alarm_parameters = {}
-    #digital_alarm_parameters["Name" ] = [ "String", 0x00, 10 ]
-    #digital_alarm_parmeters["Type" ] = [ "Bitmask", 0x01, 0x0F, { "Standard", "Disable", "Silent" "Silent with voice"}
-    #digital_alarm_parmeters["Mode" ] = [ "Bitmask", 0x01, 0x0F, { "Emergency alarm", "Emergency alarm & call", "Emergency alarm & voice"}
-    #digital_alarm_parmeters["Impolite attempts" ] = [ ]
-    #digital_alarm_parmeters["Emergent MIC duration" ] = [ ]
-
+    
     #Scan lists
+    debugMsg(2, "Parsing Scan lists")
     codeplug["Scan lists"] = []
     for i in range(250):
         record_start_addr = scan_list_start_address + i*scan_list_record_size
@@ -498,9 +501,12 @@ def decompileCodeplug(data):
                     pair["Channel"] = channel
                     record["Selected channels"].append(pair)
             
+
+            debugMsg(3, "Parsed scan list " + str(record))
             codeplug["Scan lists"].append(record)
 
     #Rx groups
+    debugMsg(2, "Parsing Rx groups")
     codeplug["RX groups"] = []
 
     for i in range(250):
@@ -513,10 +519,12 @@ def decompileCodeplug(data):
             
         # If it is empty, and has no name, ignore it.
         if record["Name"] != "" or len(record["Contacts"]) != 0:
+            debugMsg(3, "Parsed rx group - " + str(record))
             codeplug["RX groups"].append(record)
 
     
     #Zones/channels
+    debugMsg(2, "Parsing Zones")
     codeplug["Zones"] = []
 
     for i in range(num_zones):
@@ -528,11 +536,10 @@ def decompileCodeplug(data):
         #This is the number of bytes to offset from the start of the zone_start_address where these channels begin
         channels_offset = int.from_bytes(zone_data[0x0D:0x0D + 2], byteorder="little")
 
-        debugMsg(4, "Zone " + parsed_zone["Name"] + " - channel offset  as " + hex(channels_offset))
+        debugMsg(3, "Zone " + parsed_zone["Name"] + " - channel offset address - " + hex(channels_offset))
         channels_offset = (channels_offset -1) * 32
         # Add an array for the channels
         parsed_zone["Channels"] = []
-
 
         #Parse the channels
         for i in range(num_channels):
@@ -553,7 +560,8 @@ def decompileCodeplug(data):
                 channel["Tone Rx"] = DCS_Codes[channel["Tone Rx"]]
 
             parsed_zone["Channels"].append(channel)
-            
+            debugMsg(3, "Parsed channel - " + str (channel))
+
         codeplug["Zones"].append(parsed_zone)
 
     #Jsonify it, and return it
