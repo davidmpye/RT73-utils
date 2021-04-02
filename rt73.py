@@ -469,7 +469,11 @@ def decompileCodeplug(data):
             start_of_message = message_block_1_start_addr + i*message_record_size
         else:
             start_of_message = message_block_2_start_addr + (i-message_block_1_count)*message_record_size
-        msg_str = data[start_of_message: start_of_message + message_record_size].decode('ascii').rstrip("\x00")
+        
+        try:
+            msg_str = data[start_of_message: start_of_message + message_record_size].decode('ascii').rstrip("\x00")
+        except:
+            debugMsg(1, "Skipped message number " + str(i) + " containing non-ascii text")
         if msg_str != "":
             debugMsg(3, "Adding message -" + msg_str)
             codeplug["Quick messages"].append(msg_str)
