@@ -333,7 +333,7 @@ button_preset_parameters["P7 ShortPress"] = [ "Bitmask", 0x1386, 0xFF, Button_ID
 mic_gain_parameters = {}
 mic_gain_parameters["Mic gain 1"] = ["Bitmask", 0xA4, 0x80, {0x80: "On", 0x00: "Off"}]
 mic_gain_parameters["Mic gain 1 setting"] = [ "MaskNum", 0xA4, 0x07, lambda x: x*4 , lambda x: int(x/4) ]
-mic_gain_parameters["Mic gain 1"] = ["Bitmask", 0xA5, 0x80, {0x80: "On", 0x00: "Off"}]
+mic_gain_parameters["Mic gain 2"] = ["Bitmask", 0xA5, 0x80, {0x80: "On", 0x00: "Off"}]
 mic_gain_parameters["Mic gain 2 setting"] = [ "MaskNum", 0xA5, 0x1F ]
 
 #DMR settings
@@ -739,7 +739,7 @@ def downloadCodeplug(serialdevice):
         num_pages = response[18]  + response[20]
         print ("Expecting " + str(num_pages) + " pages")
         for i in range(num_pages):
-            print ("Reading page " + str(i))
+            print ("Reading page " + str(i+1))
             port.write("Read".encode('ascii'))
             plug += port.read(2048)
     return plug
@@ -770,6 +770,7 @@ def uploadCodeplug(serialdevice, data):
         if bytes[2:7].decode('ascii') != "Write":
             raise RunTimeException("Unexpected response")
         for i in range(block_count):
+            print ("Writing page " + str(i+1))
             port.write(data[2048*i:2048*(i+1)])
             bytes = port.read(5)
             if bytes.decode('ascii') == "Write":
