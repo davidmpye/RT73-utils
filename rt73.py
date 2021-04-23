@@ -122,7 +122,8 @@ Button_IDs = {
     0x3B: "A_B_TOGGLE",
     0x3C: "VOL",
     0x3D: "VFO",
-    0x3E: "MANDATORY_MONITOR"  #aka promiscuous mode
+    0x3E: "MANDATORY_MONITOR",  #aka promiscuous mode
+    0x3F: "DUAL_WATCH_TOGGLE" 
 }
 
 class Parser:
@@ -360,6 +361,32 @@ dmr_parameters["GPS Channel group ID"] = [ "Number", 0x1354, 2]
 dmr_parameters["GPS Channel channel ID"] = [ "Number", 0x1356, 2]
 
 
+#APRS settings
+aprs_parameters = {}
+aprs_parameters["Manual TX interval"] = ["Number", 0x8B, 2 ]
+#Seconds * 30
+aprs_parameters["Auto TX interval"] = [ "MaskNum", 0x8C, 0xFF, lambda x: x*30, lambda x: int(x/30)  ]
+aprs_parameters["Beacon"] = [ "Bitmask", 0x8E, 0x01, { 0x00: "Fixed location", 0x01: "GPS location" } ]
+#aprs_parameters["Lat (degrees)"] = []
+#aprs_parameters["Long (degrees)"] = []
+
+#Check this, might not be right
+aprs_parameters["AX25 TX Freq"] = [ "Number", 0x99, 4 ]
+aprs_parameters["AX25 TX Power"] = [ "Bitmask", 0xEA1, 0x01, { 0x00: "LOW", 0x01 : "HIGH" } ]
+#aprs_parameters["AX25 QT/DQT"] = []
+#aprs_parameters["AX25 APRS Tone"] = []
+#aprs_parameters["AX25 TX Delay"] = []
+#aprs_parameters["AX25 Prewave time"] = []
+aprs_parameters["AX25 Your Callsign"] = [ "String", 0xEAB, 6 ]
+aprs_parameters["AX25 Your SSID"] = [ "Number", 0xEA4, 1]
+aprs_parameters["AX25 Dest Callsign"] = [ "String", 0xEA5, 6 ]
+aprs_parameters["AX25 Dest SSID"] = [ "Number", 0xEA3, 1 ]
+#aprs_parameters["AX25 APRS Symbol Table"] = []
+#aprs_parameters["AX25 APRS Map Icon"] = []
+aprs_parameters["AX25 APRS Signal Path"] = [ "String", 0xEB3, 20 ]
+aprs_parameters["AX25 Your Sending Text"] = [ "String", 0xEC7, 61 ] 
+
+
 #Contacts
 contact_parameters = {}
 # NB These are relative to the zone record bytes, not the whole codeplug.
@@ -458,6 +485,8 @@ def decompileCodeplug(data):
     codeplug["Preset buttons"] = p.fromBytes(button_preset_parameters, data)
     debugMsg(2, "Parsing Mic gain")
     codeplug["Mic gain"] = p.fromBytes(mic_gain_parameters, data)
+    #debugMsg(2, "Parsing APRS settings")
+    #codeplug["APRS"] = p.fromBytes(aprs_parameters, data) 
     debugMsg(2, "Parsing DMR Service")
     codeplug["DMR Service" ] = p.fromBytes(dmr_parameters, data)
 
