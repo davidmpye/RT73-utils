@@ -471,7 +471,9 @@ channel_info["Tone Type Tx"] = [ "Bitmask", 0x1A, 0x0C, { 0x00: "None", 0x04: "C
 channel_info["Tone Tx"] = [ "Number",0x1C, 1 ]
 channel_info["Tone Type Rx"] = [ "Bitmask", 0x1A, 0x03, { 0x00: "None", 0x01: "CTCSS", 0x02: "DCS", 0x03: "DCS Invert" }]
 channel_info["Tone Rx"] = [ "Number",0x1B, 1 ]
-   
+# APRS setting
+channel_info["APRS Channel" ] = [ "MaskNum", 0x1F, 0xF0, lambda x: x>>4, lambda x: x<<4 ]
+
 def decompileCodeplug(data):
     codeplug = {}
     debugMsg(3, "Decompiling codeplug")
