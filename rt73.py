@@ -370,7 +370,7 @@ aprs_parameters = {}
 aprs_parameters["Manual TX interval"] = ["Number", 0xE8B, 1 ]
 #Seconds * 30
 aprs_parameters["Auto TX interval"] = [ "MaskNum", 0xE8C, 0xFF, lambda x: x*30, lambda x: int(x/30)  ]
-aprs_parameters["Beacon"] = [ "Bitmask", 0xE8E, 0x01, { 0x00: "Fixed location", 0x01: "GPS location" } ]
+aprs_parameters["Beacon"] = [ "Bitmask", 0xE8E, 0x01, { 0x00: "FIXED_LOCATION", 0x01: "GPS_LOCATION" } ]
 #aprs_parameters["Lat (degrees)"] = []
 #aprs_parameters["Long (degrees)"] = []
 
