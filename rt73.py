@@ -76,6 +76,8 @@ message_block_1_count = 15
 message_block_2_start_addr = 0x000012B
 message_block_2_count = 85
 
+aprs_dmr_channel_start_address = 0x0000E4B
+
 #List of the CTCSS tones used
 CTCSS_Tones = [ 62.5, 67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5, 94.8, 97.4, 100.0, 103.5, 107.2, 110.9, 114.8, 118.8, 
         123.0, 127.3, 131.8, 136.5, 141.3, 146.2, 151.4, 156.7, 159.8, 162.2, 165.5, 167.9, 171.3, 173.8, 177.3, 179.9, 183.5, 186.2, 
@@ -352,6 +354,8 @@ dmr_parameters["DTMF duration (on-time)"] = [ "MaskNum", 0x1371, 0xFF, lambda x:
 dmr_parameters["DTMF duration (off-time)"] = [ "MaskNum", 0x1372, 0xFF, lambda x: x*10, lambda x: int(x/10) ]  
 dmr_parameters["DTMF volume (local)"] = [ "MaskNum", 0x1373, 0x0F ] # Vol 0 - 12
 dmr_parameters["DTMF On/off"] = [ "Bitmask", 0x1363, 0x01, { 0x00: "Off", 0x01:"On" } ]
+
+#Now there's a separate APRS section - with analog and digital settings, I have no idea whether this is still respected or not....
 dmr_parameters["GPS On/off" ] = [ "Bitmask", 0x137A, 0x01, { 0x00: "Off", 0x01:"On" } ]
 dmr_parameters["GPS Interval"] = [ "MaskNum", 0x1353, 0xFF] #10 sec increments from 0 to 6, then mins above that. eg 6 = 1 min, 7 = 2 min.
 #If these are BOTH set of 0xFFFF, then the radio uses the current channel to send the APRS 'ping' to. 
@@ -363,28 +367,48 @@ dmr_parameters["GPS Channel channel ID"] = [ "Number", 0x1356, 2]
 
 #APRS settings
 aprs_parameters = {}
-aprs_parameters["Manual TX interval"] = ["Number", 0x8B, 2 ]
+aprs_parameters["Manual TX interval"] = ["Number", 0xE8B, 1 ]
 #Seconds * 30
-aprs_parameters["Auto TX interval"] = [ "MaskNum", 0x8C, 0xFF, lambda x: x*30, lambda x: int(x/30)  ]
-aprs_parameters["Beacon"] = [ "Bitmask", 0x8E, 0x01, { 0x00: "Fixed location", 0x01: "GPS location" } ]
+aprs_parameters["Auto TX interval"] = [ "MaskNum", 0xE8C, 0xFF, lambda x: x*30, lambda x: int(x/30)  ]
+aprs_parameters["Beacon"] = [ "Bitmask", 0xE8E, 0x01, { 0x00: "Fixed location", 0x01: "GPS location" } ]
 #aprs_parameters["Lat (degrees)"] = []
 #aprs_parameters["Long (degrees)"] = []
 
-#Check this, might not be right
-aprs_parameters["AX25 TX Freq"] = [ "Number", 0x99, 4 ]
+aprs_parameters["AX25 TX Freq"] = [ "Number", 0xE99, 4 ]
 aprs_parameters["AX25 TX Power"] = [ "Bitmask", 0xEA1, 0x01, { 0x00: "LOW", 0x01 : "HIGH" } ]
-#aprs_parameters["AX25 QT/DQT"] = []
-#aprs_parameters["AX25 APRS Tone"] = []
-#aprs_parameters["AX25 TX Delay"] = []
-#aprs_parameters["AX25 Prewave time"] = []
+
+#Not yet parsed this properly
+#aprs_parameters["AX25 QT/DQT"] = [ "Number", 0xE9D, 1  ]
+
+aprs_parameters["AX25 APRS Tone"] = [ "Bitmask", 0xEA2, 0x01, { 0x00: "OFF", 0x01: "ON" } ]
+#TX delay in 20ms increments
+aprs_parameters["AX25 TX Delay"] = [ "MaskNum", 0xE9F, 0xFF, lambda x: x*20, lambda x: int(x/20) ]
+#Prewave time in 10ms increments
+aprs_parameters["AX25 Prewave time"] = [ "MaskNum", 0xEA0, 0xFF, lambda x: x*10, lambda x: int(x/10) ]
+
 aprs_parameters["AX25 Your Callsign"] = [ "String", 0xEAB, 6 ]
 aprs_parameters["AX25 Your SSID"] = [ "Number", 0xEA4, 1]
 aprs_parameters["AX25 Dest Callsign"] = [ "String", 0xEA5, 6 ]
 aprs_parameters["AX25 Dest SSID"] = [ "Number", 0xEA3, 1 ]
-#aprs_parameters["AX25 APRS Symbol Table"] = []
-#aprs_parameters["AX25 APRS Map Icon"] = []
+
+#This is an ascii character code for the desired symbol
+aprs_parameters["AX25 APRS Symbol Table"] = [ "Number", 0xEB1, 1]
+aprs_parameters["AX25 APRS Map Icon"] = [ "Number", 0xEB2, 1]
+
 aprs_parameters["AX25 APRS Signal Path"] = [ "String", 0xEB3, 20 ]
 aprs_parameters["AX25 Your Sending Text"] = [ "String", 0xEC7, 61 ] 
+
+
+#These start at 0xE4B, 8 bytes long x 8 records
+#Addresses relative to start address.
+#Parsed/compiled separately, and appended to the APRS parameter section above
+aprs_dmr_record_parameters = {}
+aprs_dmr_record_parameters[ "Zone ID" ] = [ "Number", 0x00, 2 ] 
+aprs_dmr_record_parameters[ "Channel ID" ] = [ "Number", 0x02, 2 ] 
+aprs_dmr_record_parameters[ "Call Type" ] = [ "Bitmask", 0x07, 0x04, { 0x00: "PRIVATE", 0x04: "GROUP" } ]
+aprs_dmr_record_parameters[ "PTT" ] = [ "Bitmask", 0x07, 0x08, { 0x00: "OFF", 0x08: "ON" } ]
+aprs_dmr_record_parameters[ "Report Slot" ] = [ "Bitmask", 0x07, 0x03, { 0x00: "CURRENT", 0x01: "TS1", 0x02: "TS2" } ]
+aprs_dmr_record_parameters[ "APRS TG" ] = [ "Number", 0x04, 3 ] 
 
 
 #Contacts
@@ -399,7 +423,6 @@ contact_parameters["Type"] = ["Bitmask", 0x02, 0xFF, {0x04: "Group", 0x05: "Priv
 scan_list_info = {}
 # NB These are relative to the scan list record bytes, not the whole codeplug.
 scan_list_info["Name"] = [ "String", 0x00, 10] 
-scan_list_info["Talkback"] = [ "Bitmask", 0x0B, 0x20, { 0x00: "Off", 0x20: "On" } ]
 scan_list_info["Talkback"] = [ "Bitmask", 0x0B, 0x20, { 0x00: "Off", 0x20: "On" } ]
 scan_list_info["Scan TX Mode"] = [ "Bitmask", 0x0B, 0x0F, { 0x00: "Current channel", 0x04: "Last operated channel", 0x08:  "Appointed channel" } ]
 scan_list_info["Appointed channel group ID"] = [ "Number", 0x0C, 2]
@@ -485,8 +508,14 @@ def decompileCodeplug(data):
     codeplug["Preset buttons"] = p.fromBytes(button_preset_parameters, data)
     debugMsg(2, "Parsing Mic gain")
     codeplug["Mic gain"] = p.fromBytes(mic_gain_parameters, data)
-    #debugMsg(2, "Parsing APRS settings")
-    #codeplug["APRS"] = p.fromBytes(aprs_parameters, data) 
+    debugMsg(2, "Parsing APRS settings")
+    codeplug["APRS"] = p.fromBytes(aprs_parameters, data) 
+    debugMsg(2, "Parsing APRS DMR channels")
+    codeplug["APRS"]["DMR channels"] = []
+    for i in range(8):
+        codeplug["APRS"]["DMR channels"].append(p.fromBytes( aprs_dmr_record_parameters,   data [ aprs_dmr_channel_start_address + i * 8 : aprs_dmr_channel_start_address + (i+1) * 8    ]   ))
+
+
     debugMsg(2, "Parsing DMR Service")
     codeplug["DMR Service" ] = p.fromBytes(dmr_parameters, data)
 
@@ -507,7 +536,7 @@ def decompileCodeplug(data):
             debugMsg(3, "Adding message -" + msg_str)
             codeplug["Quick messages"].append(msg_str)
 
-        #Encryption - #WONTDO
+    #Encryption - #WONTDO
         
     debugMsg(2, "Parsing Contacts")
     codeplug["Contacts"] = []
@@ -607,7 +636,6 @@ def decompileCodeplug(data):
 def compileCodeplug(data):
     codeplug = json.loads(data)
     
-    
     num_contacts = len(codeplug["Contacts"])
     num_zones = len(codeplug["Zones"])
 
@@ -649,7 +677,18 @@ def compileCodeplug(data):
     p.toBytes(template,button_preset_parameters, codeplug["Preset buttons"])
     p.toBytes(template,mic_gain_parameters, codeplug["Mic gain"])
     p.toBytes(template,dmr_parameters, codeplug["DMR Service"])
-        
+    p.toBytes(template, aprs_parameters, codeplug["APRS"])
+
+    #Copy the APRS DMR channels in to place.
+    aprs_dmr_record_count = 0
+    for record in codeplug["APRS"]["DMR channels"]:
+        debugMsg(4, "Writing APRS DMR channel record " + str(aprs_dmr_record_count))
+        debugMsg(5, "Record : " + str(record))
+        aprs_dmr_record = bytearray(8)
+        p.toBytes(aprs_dmr_record,  aprs_dmr_record_parameters, record)
+        aprs_dmr_record_count = aprs_dmr_record_count + 1
+        template[aprs_dmr_channel_start_address + 8 * aprs_dmr_record_count: aprs_dmr_channel_start_address + 8 * (aprs_dmr_record_count + 1)  ] = aprs_dmr_record
+
     #Write in the quick messages
     for i in range (len(codeplug["Quick messages"])):
         debugMsg(4, "Parsing message " + codeplug["Quick messages"][i])
@@ -729,12 +768,12 @@ def compileCodeplug(data):
             if channel["Tone Type Tx"] == "CTCSS":
                 channel["Tone Tx"] = CTCSS_Tones.index(channel["Tone Tx"])
             elif channel["Tone Type Tx"] != "None": # It's DCS or DCS Invert
-                channel["Tone Tx"] = DCS_Tones.index(channel["Tone Tx"])
+                channel["Tone Tx"] = DCS_Codes.index(channel["Tone Tx"])
             #RX tones
             if channel["Tone Type Rx"] == "CTCSS":
                 channel["Tone Rx"] = CTCSS_Tones.index(channel["Tone Rx"])
             elif channel["Tone Type Rx"] != "None": # It's DCS or DCS Invert
-                channel["Tone Rx"] = DCS_Tones.index(channel["Tone Rx"])
+                channel["Tone Rx"] = DCS_Codes.index(channel["Tone Rx"])
             
             channel_record = bytearray(channel_record_size)
             p.toBytes(channel_record,channel_info, channel)
@@ -818,7 +857,6 @@ def uploadFirmware(serialdevice, data):
             port.Open()
         print ("Starting firmware flashing process")        
         port.write("Erase".encode('ascii'))
-        
         
         num_blocks = math.ceil(len(data) / 2048)
         
@@ -912,4 +950,3 @@ elif args.action == "upload_bin":
     f = open(args.filename, 'rb')
     data = f.read()
     uploadCodeplug(args.device, data)
-
