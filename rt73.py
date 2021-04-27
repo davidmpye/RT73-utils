@@ -399,7 +399,7 @@ aprs_parameters["AX25 APRS Signal Path"] = [ "String", 0xEB3, 20 ]
 aprs_parameters["AX25 Your Sending Text"] = [ "String", 0xEC7, 61 ] 
 
 
-#These start at 0xE4B, 8 bytes long x 8 records
+#These start at 0xE43, 8 bytes long x 8 records
 #Addresses relative to start address.
 #Parsed/compiled separately, and appended to the APRS parameter section above
 aprs_dmr_record_parameters = {}
