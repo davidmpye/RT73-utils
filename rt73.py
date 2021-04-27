@@ -76,7 +76,7 @@ message_block_1_count = 15
 message_block_2_start_addr = 0x000012B
 message_block_2_count = 85
 
-aprs_dmr_channel_start_address = 0x0000E4B
+aprs_dmr_channel_start_address = 0x0000E43
 
 #List of the CTCSS tones used
 CTCSS_Tones = [ 62.5, 67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5, 94.8, 97.4, 100.0, 103.5, 107.2, 110.9, 114.8, 118.8, 
