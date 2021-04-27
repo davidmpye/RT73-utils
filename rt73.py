@@ -696,8 +696,8 @@ def compileCodeplug(data):
         debugMsg(5, "Record : " + str(record))
         aprs_dmr_record = bytearray(8)
         p.toBytes(aprs_dmr_record,  aprs_dmr_record_parameters, record)
-        aprs_dmr_record_count = aprs_dmr_record_count + 1
         template[aprs_dmr_channel_start_address + 8 * aprs_dmr_record_count: aprs_dmr_channel_start_address + 8 * (aprs_dmr_record_count + 1)  ] = aprs_dmr_record
+        aprs_dmr_record_count = aprs_dmr_record_count + 1
 
     #Write in the quick messages
     for i in range (len(codeplug["Quick messages"])):
