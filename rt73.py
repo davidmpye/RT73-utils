@@ -463,7 +463,9 @@ channel_info["TX Policy"] =  [ "Bitmask", 0x15, 0xC0, { 0x00: "IMPOLITE", 0x40: 
 channel_info["Group call list"] =  ["Number", 0x17, 1]
 #Encryption
 channel_info["Scan List ID"] =  [ "Number", 0x18 , 1]
-channel_info["Default Contact ID"] =  ["Number", 0x1E, 2]
+# I think that Default Contact ID also uses a few bits from 0x1F..... so ignoring this will only allow a default contact from the first 255 contacts 
+# in the address book, so this needs fixing...
+channel_info["Default Contact ID"] =  ["Number", 0x1E, 1]
 channel_info["EAS"] =   [ "Bitmask", 0x19, 0x0F, { 0x00: "OFF", 0x01: "A1", 0x02: "A2", 0x03: "A3", 0x04: "A4" }]
 channel_info["Bandwidth"] =  [ "Bitmask", 0x14, 0x10, { 0x10: "25KHz", 0x00: "12.5KHz" } ]
 # CTCSS/DCS details
