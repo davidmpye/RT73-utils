@@ -374,7 +374,7 @@ aprs_parameters["Beacon"] = [ "Bitmask", 0xE8E, 0x01, { 0x00: "FIXED_LOCATION", 
 #aprs_parameters["Lat (degrees)"] = []
 #aprs_parameters["Long (degrees)"] = []
 
-aprs_parameters["AX25 TX Freq"] = [ "Number", 0xE99, 4 ]
+aprs_parameters["AX25 TX Freq"] = [ "Number", 0xE99, 3 ]
 aprs_parameters["AX25 TX Power"] = [ "Bitmask", 0xEA1, 0x01, { 0x00: "LOW", 0x01 : "HIGH" } ]
 
 #Not yet parsed this properly
@@ -512,6 +512,10 @@ def decompileCodeplug(data):
     codeplug["Mic gain"] = p.fromBytes(mic_gain_parameters, data)
     debugMsg(2, "Parsing APRS settings")
     codeplug["APRS"] = p.fromBytes(aprs_parameters, data) 
+    
+    #The user needs to not see the yuck that storing this in 3 bytes causes...
+    codeplug["APRS"]["AX25 TX Freq"] =  codeplug["APRS"]["AX25 TX Freq"] * 10
+
     debugMsg(2, "Parsing APRS DMR channels")
     codeplug["APRS"]["DMR channels"] = []
     for i in range(8):
@@ -679,6 +683,10 @@ def compileCodeplug(data):
     p.toBytes(template,button_preset_parameters, codeplug["Preset buttons"])
     p.toBytes(template,mic_gain_parameters, codeplug["Mic gain"])
     p.toBytes(template,dmr_parameters, codeplug["DMR Service"])
+
+    # This is horrid. But there are only 3 bytes allocated to freq here, not 4 as in everywhere else...
+    codeplug["APRS"]["AX25 TX Freq"] =  int(codeplug["APRS"]["AX25 TX Freq"] / 10)
+
     p.toBytes(template, aprs_parameters, codeplug["APRS"])
 
     #Copy the APRS DMR channels in to place.
