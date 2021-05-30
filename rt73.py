@@ -45,6 +45,8 @@ import serial
 import argparse
 import platform
 import math
+import ctypes
+ctypes.windll.kernel32.SetConsoleTitleW("Retevis RT73 Codeplug/Firmware Tool by David M0DMP")
 
 #Record sizes (bytes)
 channel_record_size = 32 
@@ -85,12 +87,12 @@ CTCSS_Tones = [ 62.5, 67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5
 
 #List of the DCS tones used - the CPS UI displays an N (normal) or I (Inverted) at the end, depending on whether normal or inverted mode is selected.
 DCS_Codes = [
-    "017", "023", "025", "026", "031", "032", "036", "043", "047", "050", "051", "053", "054", "065", "071", "072", "073", "074", "114", 
-    "115", "116", "122", "125", "131", "132", "134", "143", "145", "152", "155", "156", "162", "165", "172", "174", "205", "212", "223", 
-    "225", "226", "243", "244", "245", "246", "251", "252", "255", "261", "263", "265", "266", "271", "274", "306", "311", "315", "325", 
-    "331", "332", "343", "346", "351", "356", "364", "365", "371", "411", "412", "413", "423", "431", "432", "445", "446", "452", "454", 
-    "455", "462", "464", "465", "466", "503", "506", "516", "523", "526", "532", "546", "565", "606", "612", "624", "627", "631", "632", 
-    "645", "646", "654", "662", "664", "703", "712", "723", "731", "732", "734", "743", "754" ]
+    17, 23, 25, 26, 31, 32, 36, 43, 47, 50, 51, 53, 54, 65, 71, 72, 73, 74, 114, 
+    115, 116, 122, 125, 131, 132, 134, 143, 145, 152, 155, 156, 162, 165, 172, 174, 205, 212, 223, 
+    225, 226, 243, 244, 245, 246, 251, 252, 255, 261, 263, 265, 266, 271, 274, 306, 311, 315, 325, 
+    331, 332, 343, 346, 351, 356, 364, 365, 371, 411, 412, 413, 423, 431, 432, 445, 446, 452, 454, 
+    455, 462, 464, 465, 466, 503, 506, 516, 523, 526, 532, 546, 565, 606, 612, 624, 627, 631, 632, 
+    645, 646, 654, 662, 664, 703, 712, 723, 731, 732, 734, 743, 754 ]
 
 Button_IDs = {
     0x00: "UNDEFINED",
@@ -206,7 +208,7 @@ basic_parameters["Squelch B level"]  =  [ "MaskNum", 0x93, 0xF0, lambda x:x>>4, 
 basic_parameters["Backlight"] = [ "Bitmask", 0x95, 0x28, {0x00: "Off", 0x08: "On", 0x20: "Auto" }]
 basic_parameters["Keylock"] = [ "Bitmask", 0x95, 0x44, {0x00: "Off", 0x04: "Auto", 0x40: "Manual", 0x44: "Manual & Auto" }]
 basic_parameters["Roaming"] = [ "Bitmask", 0x137B, 0x01, {0x00: "Off", 0x01: "On"}]
-basic_parameters["Roaming mode"] = [ "Bitmask", 0x1375, 0x03, {0x00: "Auto", 0x01: "Manual", 0x03: "Strong RSSI Priority"}]
+basic_parameters["Roaming mode"] = [ "Bitmask", 0x1375, 0x03, {0x00: "Auto", 0x01: "Manual", 0x02: "Strong RSSI Priority"}]
 basic_parameters["RSSI set"] = [ "MaskNum", 0x1376, 0xFF, lambda x: -90 - x , lambda x: -1*x - 90 ]
 basic_parameters["Connect check timer"] =  [ "MaskNum", 0x1377, 0xFF ]
 basic_parameters["Repeater check timer"] =  [ "MaskNum", 0x1378, 0xFF ]
@@ -240,6 +242,7 @@ common_menu_parameters["Call log missed"] = [ "Bitmask", 0xB0, 0x04, {0x00: "Off
 common_menu_parameters["Scan on/off"] = [ "Bitmask", 0xB1, 0x01, {0x00: "Off", 0x01: "On"}]
 common_menu_parameters["Scan list"] = [ "Bitmask", 0xB1, 0x02, {0x00: "Off", 0x02: "On"}]
 common_menu_parameters["Scan mode"] = [ "Bitmask", 0xB1, 0x04, {0x00: "Off", 0x04: "On"}]
+common_menu_parameters["Roam on/off"] = [ "Bitmask", 0xB1, 0x08, {0x00: "Off", 0x08: "On"}]
 common_menu_parameters["Scan running on/off"] = [ "Bitmask", 0x10, 0x10, {0x00: "Off", 0x10: "On"}]
 
 common_menu_parameters["Zone list on/off"] = [ "Bitmask", 0xB2, 0x01, {0x00: "Off", 0x01: "On"}]
@@ -285,6 +288,11 @@ common_menu_parameters["Time"] = [ "Bitmask", 0xB7, 0x08, {0x00: "Off", 0x08: "O
 common_menu_parameters["DTMF"] = [ "Bitmask", 0xB7, 0x10, {0x00: "Off", 0x10: "On"}]
 common_menu_parameters["Speaker handmic"] = [ "Bitmask", 0xB7, 0x20, {0x00: "Off", 0x20: "On"}]
 
+common_menu_parameters["Record set"] = [ "Bitmask", 0xB8, 0x01, {0x00: "Off", 0x01: "On"}]
+common_menu_parameters["Record list"] = [ "Bitmask", 0xB8, 0x02, {0x00: "Off", 0x02: "On"}]
+common_menu_parameters["Record clear"] = [ "Bitmask", 0xB8, 0x04, {0x00: "Off", 0x04: "On"}]
+common_menu_parameters["Record space"] = [ "Bitmask", 0xB8, 0x08, {0x00: "Off", 0x08: "On"}]
+
 common_menu_parameters["Radio ID"] = [ "Bitmask", 0xB9, 0x01, {0x00: "Off", 0x01: "On"}]
 common_menu_parameters["RX group list"] = [ "Bitmask", 0xB9, 0x02, {0x00: "Off", 0x02: "On"}]
 common_menu_parameters["Channel contact"] = [ "Bitmask", 0xB9, 0x04, {0x00: "Off", 0x04: "On"}]
@@ -302,7 +310,7 @@ prompt_tone_parameters["Key tone"] = [ "Bitmask", 0xAB, 0x80, {0x00: "Off", 0x80
 prompt_tone_parameters["Key tone vol"] = [ "MaskNum", 0xAB, 0x0F ]
 prompt_tone_parameters["Low bat alert tone"] = [ "Bitmask", 0xAC, 0x80, {0x00: "Off", 0x80: "On"}]
 prompt_tone_parameters["Low bat alert vol"] = [ "MaskNum", 0xAC, 0x0F ]
-prompt_tone_parameters["Call hang up"] =  [ "Bitmask", 0x12d8, 0x01, {0x00: "Silent", 0x01: "Prompt tone"}]
+prompt_tone_parameters["Call hang up"] =  [ "Bitmask", 0x12d8, 0x01, {0x00: "Silent", 0x01: "Prompt Tone"}]
 prompt_tone_parameters["Boot ringtone"] = [ "Bitmask", 0x95, 0x02, {0x00: "Off", 0x02: "On"}]
 prompt_tone_parameters["Roaming restart prompt"] = [ "MaskNum", 0x1383, 0x0F ]
 prompt_tone_parameters["Repeater selected prompt"] = [ "MaskNum", 0x1383, 0x0F ]
@@ -417,14 +425,14 @@ contact_parameters = {}
 contact_parameters["ID"] = [ "Number", 0x00, 2 ]
 contact_parameters["Name"] = [ "String", 0x03, 10 ]
 contact_parameters["DMR ID"] = [ "Number", 0x0D, 3 ]
-contact_parameters["Type"] = ["Bitmask", 0x02, 0xFF, {0x04: "Group", 0x05: "Private", 0x06: "All call", 0x07: "No-address call", 0x08: "RawData", 0x09: "Define Data", 0x0A: "SPDATA"}]
+contact_parameters["Type"] = ["Bitmask", 0x02, 0xFF, {0x04: "Group", 0x05: "Private", 0x06: "All Call", 0x07: "No-Address Call", 0x08: "RawData", 0x09: "Define Data", 0x0A: "SPDATA"}]
 
 # Scan list
 scan_list_info = {}
 # NB These are relative to the scan list record bytes, not the whole codeplug.
 scan_list_info["Name"] = [ "String", 0x00, 10] 
 scan_list_info["Talkback"] = [ "Bitmask", 0x0B, 0x20, { 0x00: "Off", 0x20: "On" } ]
-scan_list_info["Scan TX Mode"] = [ "Bitmask", 0x0B, 0x0F, { 0x00: "Current channel", 0x04: "Last operated channel", 0x08:  "Appointed channel" } ]
+scan_list_info["Scan TX Mode"] = [ "Bitmask", 0x0B, 0x0F, { 0x00: "Current Channel", 0x04: "Last Operated Channel", 0x08:  "Appointed Channel" } ]
 scan_list_info["Appointed channel group ID"] = [ "Number", 0x0C, 2]
 scan_list_info["Appointed channel channel ID"] = [ "Number", 0x0E, 2 ]
 
@@ -445,19 +453,19 @@ channel_info = {}
 # NB These are relative to the zone record bytes, not the whole codeplug.
 #Structure: Human readable name: Type,  byte offset, length (mask if bitmask), ( enum values if bitmask)
 channel_info["ID"] =  ["Number", 0x00, 2  ]
-channel_info[ "Type"] = ["Bitmask", 0x14, 0xC0, { 0x00: "ANALOG",  0x40: "DIGITAL",  0x80: "D_A_TX_A",  0xC0: "D_A_TX_D" } ]
-channel_info[ "Name"] =  ["String", 0x02, 10 ]
-channel_info[ "Rx Freq"] =  ["Number", 0x0C, 4  ]
-channel_info[ "Tx Freq"] = ["Number", 0x10, 4  ]
-channel_info[ "Tx Power"] =  [ "Bitmask", 0x14, 0x20, { 0x00: "LOW", 0x20: "HIGH" }]
+channel_info["Type"] = ["Bitmask", 0x14, 0xC0, { 0x00: "ANALOG",  0x40: "DIGITAL",  0x80: "D_A_TX_A",  0xC0: "D_A_TX_D" } ]
+channel_info["Name"] =  ["String", 0x02, 10 ]
+channel_info["Rx Freq"] =  ["Number", 0x0C, 4  ]
+channel_info["Tx Freq"] = ["Number", 0x10, 4  ]
+channel_info["Tx Power"] =  [ "Bitmask", 0x14, 0x20, { 0x00: "LOW", 0x20: "HIGH" }]
 channel_info["Rx only"] = [ "Bitmask", 0x19, 0x10, { 0x00: "OFF", 0x10: "ON" }]
 channel_info["Alarm"]= [ "Bitmask", 0x14, 0x08, { 0x00: "OFF", 0x08: "ON" }]
-channel_info[ "Prompt"] = [ "Bitmask", 0x14, 0x08 , { 0x00: "OFF", 0x08: "ON" } ]
-channel_info[ "PCT"] = [ "Bitmask", 0x14, 0x02, { 0x00: "PATCS", 0x02: "OACSU" }]
-channel_info[ "TS Rx"]=  [ "Bitmask", 0x14, 0x01, { 0x00: "TS1", 0x01: "TS2" } ]
+channel_info["Prompt"] = [ "Bitmask", 0x14, 0x08 , { 0x00: "OFF", 0x08: "ON" } ]
+channel_info["PCT"] = [ "Bitmask", 0x14, 0x02, { 0x00: "PATCS", 0x02: "OACSU" }]
+channel_info["TS Rx"]=  [ "Bitmask", 0x14, 0x01, { 0x00: "TS1", 0x01: "TS2" } ]
 channel_info["TS Tx"] =[ "Bitmask", 0x1D, 0x02, { 0x00: "TS1", 0x02: "TS2" } ]
-channel_info[ "RX CC"] = ["MaskNum", 0x15, 0x0F]
-channel_info[ "TX CC"] = ["MaskNum", 0x1D, 0xF0, lambda x: x>>4, lambda x: x<<4]
+channel_info["RX CC"] = ["MaskNum", 0x15, 0x0F]
+channel_info["TX CC"] = ["MaskNum", 0x1D, 0xF0, lambda x: x>>4, lambda x: x<<4]
 channel_info["MSG Type"] =  [ "Bitmask", 0x15, 0x10, { 0x00: "UNCONFIRMED", 0x10: "CONFIRMED" }]
 channel_info["TX Policy"] =  [ "Bitmask", 0x15, 0xC0, { 0x00: "IMPOLITE", 0x40: "POLITE_TO_CC", 0x60: "POLITE_TO_ALL" }]
 channel_info["Group call list"] =  ["Number", 0x17, 1]
@@ -469,9 +477,9 @@ channel_info["Default Contact ID"] =  ["Number", 0x1E, 1]
 channel_info["EAS"] =   [ "Bitmask", 0x19, 0x0F, { 0x00: "OFF", 0x01: "A1", 0x02: "A2", 0x03: "A3", 0x04: "A4" }]
 channel_info["Bandwidth"] =  [ "Bitmask", 0x14, 0x10, { 0x10: "25KHz", 0x00: "12.5KHz" } ]
 # CTCSS/DCS details
-channel_info["Tone Type Tx"] = [ "Bitmask", 0x1A, 0x0C, { 0x00: "None", 0x04: "CTCSS", 0x08: "DCS", 0x0C: "DCS Invert" }]
+channel_info["Tone Type Tx"] = [ "Bitmask", 0x1A, 0x0C, { 0x00: "OFF", 0x04: "CTCSS", 0x08: "DCS", 0x0C: "DCS Invert" }]
 channel_info["Tone Tx"] = [ "Number",0x1C, 1 ]
-channel_info["Tone Type Rx"] = [ "Bitmask", 0x1A, 0x03, { 0x00: "None", 0x01: "CTCSS", 0x02: "DCS", 0x03: "DCS Invert" }]
+channel_info["Tone Type Rx"] = [ "Bitmask", 0x1A, 0x03, { 0x00: "OFF", 0x01: "CTCSS", 0x02: "DCS", 0x03: "DCS Invert" }]
 channel_info["Tone Rx"] = [ "Number",0x1B, 1 ]
 # APRS setting
 channel_info["APRS Channel" ] = [ "MaskNum", 0x1F, 0xF0, lambda x: x>>4, lambda x: x<<4 ]
@@ -623,13 +631,13 @@ def decompileCodeplug(data):
             #TX tones
             if channel["Tone Type Tx"] == "CTCSS":
                 channel["Tone Tx"] = CTCSS_Tones[channel["Tone Tx"]]
-            elif channel["Tone Type Tx"] != "None": # It's DCS or DCS Invert
+            elif channel["Tone Type Tx"] != "OFF": # It's DCS or DCS Invert
                 channel["Tone Tx"] = DCS_Codes[channel["Tone Tx"]]
 
             #RX tones
             if channel["Tone Type Rx"] == "CTCSS":
                 channel["Tone Rx"] = CTCSS_Tones[channel["Tone Rx"]]
-            elif channel["Tone Type Rx"] != "None": # It's DCS or DCS Invert
+            elif channel["Tone Type Rx"] != "OFF": # It's DCS or DCS Invert
                 channel["Tone Rx"] = DCS_Codes[channel["Tone Rx"]]
 
             parsed_zone["Channels"].append(channel)
@@ -638,7 +646,7 @@ def decompileCodeplug(data):
         codeplug["Zones"].append(parsed_zone)
 
     #Jsonify it, and return it
-    return json.dumps(codeplug, indent=4)
+    return json.dumps(codeplug, indent=2)
 
 
 def compileCodeplug(data):
@@ -779,12 +787,12 @@ def compileCodeplug(data):
             #Need to turn the CTCSS/DCS code values back into the enumerated constant.
             if channel["Tone Type Tx"] == "CTCSS":
                 channel["Tone Tx"] = CTCSS_Tones.index(channel["Tone Tx"])
-            elif channel["Tone Type Tx"] != "None": # It's DCS or DCS Invert
+            elif channel["Tone Type Tx"] != "OFF": # It's DCS or DCS Invert
                 channel["Tone Tx"] = DCS_Codes.index(channel["Tone Tx"])
             #RX tones
             if channel["Tone Type Rx"] == "CTCSS":
                 channel["Tone Rx"] = CTCSS_Tones.index(channel["Tone Rx"])
-            elif channel["Tone Type Rx"] != "None": # It's DCS or DCS Invert
+            elif channel["Tone Type Rx"] != "OFF": # It's DCS or DCS Invert
                 channel["Tone Rx"] = DCS_Codes.index(channel["Tone Rx"])
             
             channel_record = bytearray(channel_record_size)
@@ -793,10 +801,10 @@ def compileCodeplug(data):
             template[channel_start_address + (channel_record_size * count) : channel_start_address + (channel_record_size * (count + 1))] = channel_record
             count = count + 1
 
-    if len(template) != codeplug_size:
-        print("Codeplug size has been altered - this is a bug")
-        print("Should be " + str(codeplug_size) + ", was " + len(template))
-        exit(1)
+    #if len(template) != codeplug_size:
+        #print("Codeplug size has been altered - this is a bug")
+        #print("Should be " + str(codeplug_size) + ", was " + len(template))
+        #exit(1)
 
     return template
 
@@ -804,12 +812,20 @@ def downloadCodeplug(serialdevice):
     plug = bytearray()
     with serial.Serial(serialdevice) as port:
         port.baudrate = 115200
+        port.timeout = 10
+        print ("Establishing Connection To Radio...")
+        
         if (port.isOpen() == False):
             port.Open()
         port.write("Flash Read ".encode('ascii'))
         port.write(b"\x00\x3c\x00\x00\x00\x00\x00\x39\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
         response = port.read(103)
-        
+        if len(response) <= 1:
+            print ("Timeout: Empty Response...")
+            sys.exit(1)
+        else:
+            print ("Success: Begin Download...")
+            
         if debug_level == 4:
             print("Message rx from plug download handshake:")
             print(response)
@@ -822,6 +838,7 @@ def downloadCodeplug(serialdevice):
             print ("Reading page " + str(i+1))
             port.write("Read".encode('ascii'))
             plug += port.read(2048)
+    print ("Download Complete...")
     return plug
 
 
@@ -842,11 +859,20 @@ def uploadCodeplug(serialdevice, data):
 
     with serial.Serial(serialdevice) as port:
         port.baudrate = 115200
+        port.timeout = 10
+        print ("Establishing Connection To Radio...")
         if (port.isOpen() == False):
             port.Open()
     
         port.write(response)
         bytes = port.read(93)
+        if len(bytes) <= 1:
+            print ("Timeout: Empty Response...")
+            sys.exit(1)
+        else:
+            print ("Success: Begin Upload...")
+        print ("Uploading " + str(block_count) + " pages")
+        
         if bytes[2:7].decode('ascii') != "Write":
             raise RunTimeException("Unexpected response")
         for i in range(block_count):
@@ -860,6 +886,7 @@ def uploadCodeplug(serialdevice, data):
             else:
                 print(bytes)
                 raise RunTimeError("Unexpected response from radio")
+    print ("Upload Complete...")                                
 
 
 def uploadFirmware(serialdevice, data):
@@ -867,7 +894,8 @@ def uploadFirmware(serialdevice, data):
         port.baudrate = 115200
         if (port.isOpen() == False):
             port.Open()
-        print ("Starting firmware flashing process")        
+            
+        print ("Starting firmware flashing process")
         port.write("Erase".encode('ascii'))
         
         num_blocks = math.ceil(len(data) / 2048)
