@@ -493,6 +493,19 @@ def decompileCodeplug(data):
     
     #Based on the above constants, we can work out where certain things will start within the codeplug.
     contact_block_size = num_contacts * contact_record_size
+
+    debugMsg(2, "Contacts Block Size " + str(contact_block_size))
+    #Pad contact block to a multiple of 1K if needed
+    if contact_block_size %1024 != 0:
+        contact_block_size += 1024 - (contact_block_size%1024)
+        debugMsg(2, "Contacts Block Padded " + str(contact_block_size))
+
+    #Pad contact block to an odd number of blocks - possible fix for number of contacts > 64
+    if (contact_block_size//1024)%2 == 0:
+        debugMsg(2, "Contacts Block Count Was Even - Adding another block")
+        contact_block_size = contact_block_size + 1024
+
+    debugMsg(2, "Contact Block Size " + str(contact_block_size))
     #The start address of the zone will start on a 1K byte (0x400 hex) boundary, after the contacts have ended.
     zone_start_address = contact_start_address + contact_block_size
     #Check it's on a 1K boundary, and if not, offset it so it is.
@@ -555,11 +568,13 @@ def decompileCodeplug(data):
     #Encryption - #WONTDO
         
     debugMsg(2, "Parsing Contacts")
+    debugMsg(4, "Contacts " + str(num_contacts))
     codeplug["Contacts"] = []
     for i in range(num_contacts):
         contact_data = data[contact_start_address + i*contact_record_size: contact_start_address + (i+1)*contact_record_size]
         parsed_contact = p.fromBytes(contact_parameters, contact_data)
         debugMsg(3, "Parsed contact - " + str(parsed_contact))
+        
         codeplug["Contacts"].append(parsed_contact)
         
     #Digital alarm list - #TODO
@@ -653,6 +668,7 @@ def compileCodeplug(data):
     codeplug = json.loads(data)
     
     num_contacts = len(codeplug["Contacts"])
+    debugMsg(4, "Num Contacts " + str(num_contacts))
     num_zones = len(codeplug["Zones"])
 
     #Count the channels
@@ -661,14 +677,25 @@ def compileCodeplug(data):
         num_channels += len(i["Channels"])
 
     contact_block_size = num_contacts * contact_record_size
+
+    debugMsg(2, "Contacts Block Size " + str(contact_block_size))
     #Pad contact block to a multiple of 1K if needed
     if contact_block_size %1024 != 0:
         contact_block_size += 1024 - (contact_block_size%1024)
-    
-    zone_start_address = contact_start_address + contact_block_size
+        debugMsg(2, "Contacts Block Padded " + str(contact_block_size))
 
+    #Pad contact block to an odd number of blocks - possible fix for number of contacts > 64
+    if (contact_block_size//1024)%2 == 0:
+        debugMsg(2, "Contacts Block Count Was Even")
+        contact_block_size = contact_block_size + 1024
+
+    zone_start_address = contact_start_address + contact_block_size
+    debugMsg(2, "Contact Start Address " + str(contact_start_address))
+    debugMsg(2, "Zone Start Address " + str(zone_start_address))
+    
     #The contacts start immediately after the zones.
     channel_start_address = zone_start_address + 32*num_zones
+    debugMsg(2, "Channel Start Address " + str(channel_start_address))
 
     # Size the codeplug - it needs to be a whole number of 2048 blocks
     codeplug_size = channel_start_address + num_channels*channel_record_size
@@ -727,7 +754,7 @@ def compileCodeplug(data):
     for contact in codeplug["Contacts"]:
         contact_record = bytearray(contact_record_size)
         p.toBytes(contact_record, contact_parameters, contact)
-
+        debugMsg(4, "Contact " + str(contact))
         template[contact_start_address + contact_record_size*count:contact_start_address + contact_record_size*(count+1) ] = contact_record
         count = count + 1 
             
@@ -801,10 +828,10 @@ def compileCodeplug(data):
             template[channel_start_address + (channel_record_size * count) : channel_start_address + (channel_record_size * (count + 1))] = channel_record
             count = count + 1
 
-    #if len(template) != codeplug_size:
-        #print("Codeplug size has been altered - this is a bug")
-        #print("Should be " + str(codeplug_size) + ", was " + len(template))
-        #exit(1)
+    if len(template) != codeplug_size:
+        print("Codeplug size has been altered - this is a bug")
+        print("Should be " + str(codeplug_size) + ", was " + len(template))
+        exit(1)
 
     return template
 
@@ -871,7 +898,7 @@ def uploadCodeplug(serialdevice, data):
             sys.exit(1)
         else:
             print ("Success: Begin Upload...")
-        print ("Uploading " + str(block_count) + " pages")
+        print ("Writing " + str(block_count) + " pages")
         
         if bytes[2:7].decode('ascii') != "Write":
             raise RunTimeException("Unexpected response")
@@ -895,7 +922,7 @@ def uploadFirmware(serialdevice, data):
         if (port.isOpen() == False):
             port.Open()
             
-        print ("Starting firmware flashing process")
+        print ("Starting Firmware Upload Process")
         port.write("Erase".encode('ascii'))
         
         num_blocks = math.ceil(len(data) / 2048)
@@ -904,10 +931,10 @@ def uploadFirmware(serialdevice, data):
         port.write((num_blocks-1).to_bytes(length=2, byteorder='little'))
  
         bytes = port.read(41)
-        print(bytes)
+        #print(bytes)
         # Last section should be "Erase ok"
         if bytes[33:].decode('ascii') == "Erase ok":
-            print("Erase OK")
+            print("Erase OK - Begin Writing")
         else:
             print (bytes)
             raise RunTimeException("Erase failed - unexpected response")
@@ -916,7 +943,7 @@ def uploadFirmware(serialdevice, data):
         
         for i in range(num_blocks):
             block = data[2048*i:2048*(i+1)]
-            print ("Uploading firmware, block " +str(i+1) +" of " + str(num_blocks)+ ", size " + str(len(block)) + " bytes")
+            print ("Writing Block " +str(i+1) +" of " + str(num_blocks))
             if i == num_blocks - 1 and len(block) != 2048:
                 # The final block isn't 2048 bytes long, so pad if necessary
                 print ("Added " + str(2048-len(block)) + " pad bytes")
@@ -926,15 +953,16 @@ def uploadFirmware(serialdevice, data):
 
             bytes = port.read(3) #Check this says "kyd"
             if bytes.decode('ascii') == "kyd":
-                print ("OK")
+                #print ("OK")
+                kyd = "OK"
             else:
                 debugMsg(0, "Unexpected response from radio - " + bytes.decode('ascii'))
                 raise RunTimeException("Unexpected response")
         bytes = port.read(8)
-        print(bytes)
+        #print(bytes)
         if bytes[0:8].decode('ascii') == "Checksum":
             #Seems it worked, there always seem to be messages about flash errors even with the proper SW :-O
-            print ("Program successful")
+            print ("Firmware Upload Complete")
         else:
             print (bytes)
             #raise RunTimeException("Unexpected response from radio - " + bytes.decode('ascii'))
@@ -956,7 +984,7 @@ elif platform.system() == "Windows":
 parser = argparse.ArgumentParser(
     description = "Retevis RT73 codeplug/firmware upgrade tool, GNU GPL v3 or later, (C) 2020-21 David Pye davidmpye@gmail.com"
 )
-parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin"], help='''upload - Compile and upload a JSON-formatted file to the radio,
+parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin", "decompile_bin"], help='''upload - Compile and upload a JSON-formatted file to the radio,
 download - Download and convert the radio's codeplug to a JSON-formatted file,
 flash_fw - Upgrade the radio's firmware (radio must be powered on while pressing P1 and be displaying a grey screen before upload)''')
 parser.add_argument("filename", type=str, help="Filename to upload, or to save")
@@ -978,6 +1006,8 @@ elif args.action == "upload":
     input = f.read()
     data = compileCodeplug(input)
     f.close()
+    #ff = open("temp.bin", 'wb')
+    #ff.write(data)
     uploadCodeplug(args.device, data)
 elif args.action == "flash_fw":
     f = open(args.filename,'rb')
@@ -990,3 +1020,10 @@ elif args.action == "upload_bin":
     f = open(args.filename, 'rb')
     data = f.read()
     uploadCodeplug(args.device, data)
+elif args.action == "decompile_bin":
+    f = open(args.filename, 'rb')
+    input = f.read()
+    data = decompileCodeplug(input)
+    f.close()
+    ff = open(args.filename[:-4]+".json", 'w')
+    ff.write(data)
