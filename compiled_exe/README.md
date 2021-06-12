@@ -10,4 +10,19 @@ Download/Upload using the default COM port (COM1):\
 \
 Specify your own COM port with the "--device COM*" parameter, e.g COM2:\
 "rt73.exe --device COM2 download codeplug.json"\
-"rt73.exe --device COM2 upload codeplug.json"
+"rt73.exe --device COM2 upload codeplug.json"\
+\
+\
+DMR ID Database Upload - From CSV File\
+"Ham Contacts" as this radio calls it has been added to the script. It expects the file to be a CSV with headers, specifically the RadioID.net database.\
+"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME,CITY,STATE,COUNTRY"\
+\
+To upload to the radio is as easy as uploading the codeplug, you just need the CSV file location and the contact byte amount you wish to write\
+16 bytes = DMR ID + CALLSIGN ONLY\
+128 bytes = DMR ID + CALLSIGN + NAME + CITY + STATE + COUNTRY\
+\
+"rt73.exe --device COM2 upload_dmrid users.csv --dmridtype 16 (or 128)"\
+\
+\
+The latest World-Wide full database dump is available here, Updated Daily!\
+https://www.radioid.net/static/user.csv
