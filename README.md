@@ -1,8 +1,10 @@
 # RT73-utils
 
-This Python script is designed to upload and download codeplugs from the Retevis RT-73 radio (Also known as the Kydera CDR-300UV)
+This Python script is designed to upload and download codeplugs from the Retevis RT73 radio (Also known as the Kydera CDR-300UV)
 
 It can download them, decompile them into a more friendly JSON format, and recompile and reupload them.
+
+It can now upload 'ham contacts' to the radio, slightly quicker than the CPS can.. ~198k contacts in around 40 minutes :)
 
 It can also upgrade the radio's firmware.
 
