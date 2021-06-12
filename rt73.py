@@ -8,7 +8,6 @@ as well as to upgrade the firmware (as supplied by the manufacturer)
 The main purpose is to allow you to enjoy your radio without the need for manufacturer-produced, 
 buggy, windows-only software.
 
-It does not *YET* allow the Ham Contact/Ham Groups upload/download functionality, though I hope to add this soon.
 Encryption settings are (intentionally) not supported, as these are not permitted for amateur radio use.
 
 Any feedback welcome!
@@ -34,12 +33,14 @@ __email__ =  "davidmpye@gmail.com"
 __license__ = "GPLv3"
 __maintainer__ = "David Pye"
 __status__ = "Beta"
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
+__contributions__ = "Dave MM7DBT - DMR ID Database Upload Added :)"
 
 import struct
 import sys
 from enum import Enum
+import csv
 import json
 import serial
 import argparse
@@ -47,6 +48,16 @@ import platform
 import math
 import ctypes
 ctypes.windll.kernel32.SetConsoleTitleW("Retevis RT73 Codeplug/Firmware Tool by David M0DMP")
+
+######################
+######Exit Code Status
+######Code 0 - Success
+######Code 1 - No response from radio (can't connect)
+######Code 2 - Unknown response from radio
+######Code 3 - Codeplug too large >255 pages
+######Code 4 - Codeplug size was incorrect when compiled
+######Code 5 - Firmware Failed - Possibly still updated succesfully though
+#####################
 
 #Record sizes (bytes)
 channel_record_size = 32 
@@ -831,7 +842,7 @@ def compileCodeplug(data):
     if len(template) != codeplug_size:
         print("Codeplug size has been altered - this is a bug")
         print("Should be " + str(codeplug_size) + ", was " + len(template))
-        exit(1)
+        sys.exit(4)
 
     return template
 
@@ -840,32 +851,33 @@ def downloadCodeplug(serialdevice):
     with serial.Serial(serialdevice) as port:
         port.baudrate = 115200
         port.timeout = 10
-        print ("Establishing Connection To Radio...")
+        print("Establishing Connection To Radio...")
         
         if (port.isOpen() == False):
             port.Open()
+            
         port.write("Flash Read ".encode('ascii'))
         port.write(b"\x00\x3c\x00\x00\x00\x00\x00\x39\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
         response = port.read(103)
         if len(response) <= 1:
-            print ("Timeout: Empty Response...")
+            print("Timeout: No Response...")
             sys.exit(1)
         else:
-            print ("Success: Begin Download...")
+            print("Success: Begin Download...")
             
         if debug_level == 4:
             print("Message rx from plug download handshake:")
             print(response)
             for i in range(len(response)):
-                print (hex(response[i]) + " ",end='')
+                print(hex(response[i]) + " ",end='')
 
         num_pages = response[18]  + response[20]
-        print ("Expecting " + str(num_pages) + " pages")
+        print("Expecting " + str(num_pages) + " Blocks")
         for i in range(num_pages):
-            print ("Reading page " + str(i+1))
+            print("Reading Block " + str(i+1) + " of " + str(num_pages))
             port.write("Read".encode('ascii'))
             plug += port.read(2048)
-    print ("Download Complete...")
+    print("Download Complete...")
     return plug
 
 
@@ -877,9 +889,9 @@ def uploadCodeplug(serialdevice, data):
         data += (b"\x00" * (2048 - (size%2048)))
 
     block_count = int (len(data) / 2048)
-    print ("Uploading " + str(block_count) + " pages")
     if block_count > 0xFF:
-        raise RunTimeException("Codeplug too large")
+        print("Codeplug Too Large!")
+        sys.exit(4)
 
     response = bytearray("Flash Write".encode('ascii')) + b"\x00\x3c\x00\x00\x00\x00\x00\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
     response[18] = block_count
@@ -887,85 +899,168 @@ def uploadCodeplug(serialdevice, data):
     with serial.Serial(serialdevice) as port:
         port.baudrate = 115200
         port.timeout = 10
-        print ("Establishing Connection To Radio...")
+        print("Establishing Connection To Radio...")
+        
+        if (port.isOpen() == False):
+            port.Open()
+            
+        port.write(response)
+        bytes = port.read(93)
+        if len(bytes) <= 1:
+            print("Timeout: No Response...")
+            sys.exit(1)
+        else:
+            print("Success: Begin Upload...")
+        print("Writing " + str(block_count) + " Blocks")
+        
+        if bytes[2:7].decode('ascii') != "Write":
+            print("Unexpected Response From Radio")
+            sys.exit(2)
+        for i in range(block_count):
+            print("Writing Block " + str(i+1) + " of " + str(block_count))
+            port.write(data[2048*i:2048*(i+1)])
+            bytes = port.read(5)
+            if bytes.decode('ascii') == "Write":
+                pass
+            elif i == block_count-1 and bytes.decode('ascii') == "Check":
+                print("Upload Complete...")
+            else:
+                print("Unexpected Response From Radio")
+                sys.exit(2)
+    print("Upload Complete...")                                
+
+
+def uploadHamContacts(serialdevice, csvfile, contactbytes):
+
+    RADIO_ID = []
+    CONTACT_INFO = []
+
+    with open(csvfile, 'r', encoding="ascii", errors="surrogateescape") as csv_file:
+        csv_reader = csv.DictReader(csv_file, delimiter=',')    
+        for row in csv_reader:
+            RADIO_ID.append(int(row['RADIO_ID']))
+            if len(row['LAST_NAME']) > 0 and row['LAST_NAME'] != " ":
+                CONTACT_INFO.append(row['CALLSIGN']+","+row['FIRST_NAME']+" "+row['LAST_NAME']+","+row['CITY']+","+row['STATE']+","+row['COUNTRY'])
+            else:
+                CONTACT_INFO.append(row['CALLSIGN']+","+row['FIRST_NAME']+","+row['CITY']+","+row['STATE']+","+row['COUNTRY'])
+    
+    contact_bytes = contactbytes
+    contactcount = len(RADIO_ID)
+    contact_bin_size = contact_bytes * contactcount
+    template = bytearray(b"\x00" * contact_bytes)
+
+    for i in range(len(RADIO_ID)):
+        template[contact_bytes*i:contact_bytes*i+2] = RADIO_ID[i].to_bytes(length=3, byteorder='little')
+        template[contact_bytes*i+3:] = CONTACT_INFO[i].encode('ascii', 'ignore')
+
+        size = len(template[contact_bytes*i:contact_bytes*i+contact_bytes])
+        if size % contact_bytes != 0:
+            template[contact_bytes*i:contact_bytes*i+contact_bytes] += (b"\x00" * (contact_bytes - (size%contact_bytes)))
+            
+    if len(template) % 2048 != 0:
+        template[len(template):contact_bin_size] = (b"\x00" * (2048 - (len(template)%2048)))
+
+    f = open('128', 'wb')
+    f.write(template)
+    print("Uploading " + str(contactcount) + " Contacts (" + str(contactbytes) + "bytes)")
+
+    block_count = int (len(template) / 2048)
+    #if block_count > 0x30D4:
+    #    raise RunTimeException("DMR Database Too Large") #Need to work out maximum block count - possibly 18750 (300k contacts of 128 bytes)
+    
+    response = b""
+    response += bytearray("Flash Write".encode('ascii')) 
+    response += b'\x81\x10\x00\x00\x00\x00'
+    response += bytearray(block_count.to_bytes(2, 'big')) #block count
+    response += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x2B'
+    response += bytearray(contactbytes.to_bytes(1, 'little')) # 16 or 128
+    response += b'\x2B\x00'
+    response += bytearray(contactcount.to_bytes(3, 'big')) #contact count
+
+    with serial.Serial(serialdevice) as port:
+        port.baudrate = 115200
+        port.timeout = 10
+        print("Establishing Connection To Radio...")
+        
         if (port.isOpen() == False):
             port.Open()
     
         port.write(response)
         bytes = port.read(93)
         if len(bytes) <= 1:
-            print ("Timeout: Empty Response...")
+            print("Timeout: Empty Response...")
             sys.exit(1)
         else:
-            print ("Success: Begin Upload...")
-        print ("Writing " + str(block_count) + " pages")
-        
+            print("Success: Begin Upload...")
+        print("Writing " + str(block_count) + " Blocks")
         if bytes[2:7].decode('ascii') != "Write":
-            raise RunTimeException("Unexpected response")
+            print("Unexpected Response From Radio")
+            sys.exit(2)
         for i in range(block_count):
-            print ("Writing page " + str(i+1))
-            port.write(data[2048*i:2048*(i+1)])
+            print("Writing Block " + str(i+1) + " of " + str(block_count))
+            port.write(template[2048*i:2048*(i+1)])
             bytes = port.read(5)
-            if bytes.decode('ascii') == "Write":
+            if bytes[0:6].decode('ascii') == "Write":
                 pass
-            elif i == block_count-1 and bytes.decode('ascii') == "Check":
-                print ("Write completed OK")
+            elif bytes[0:6].decode('ascii') == "Check":# and i == block_count-1:
+                print("Upload Complete...")
             else:
-                print(bytes)
-                raise RunTimeError("Unexpected response from radio")
-    print ("Upload Complete...")                                
+                print("Unexpected Response From Radio")
+                sys.exit(2)
+    print("Upload Complete...")      
 
 
 def uploadFirmware(serialdevice, data):
     with serial.Serial(serialdevice) as port:
         port.baudrate = 115200
+        port.timeout = 10
+        
         if (port.isOpen() == False):
             port.Open()
             
-        print ("Starting Firmware Upload Process")
+        print("Starting Firmware Upload Process")
         port.write("Erase".encode('ascii'))
         
         num_blocks = math.ceil(len(data) / 2048)
         
         port.write(b"\x20\x20\x20\x20\x20\x20\x00\x00\x00\x00\x00\x00") # \x01\x87")
         port.write((num_blocks-1).to_bytes(length=2, byteorder='little'))
- 
+        
+        #Should be "Erase ok"
         bytes = port.read(41)
-        #print(bytes)
-        # Last section should be "Erase ok"
-        if bytes[33:].decode('ascii') == "Erase ok":
+        if len(bytes) <= 1:
+            print("Timeout: Empty Response...")
+            sys.exit(1)
+        elif bytes[33:].decode('ascii') == "Erase ok":
             print("Erase OK - Begin Writing")
         else:
-            print (bytes)
-            raise RunTimeException("Erase failed - unexpected response")
+            print("Unexpected Response From Radio")
+            sys.exit(2)
 
         num_blocks = math.ceil(len(data) / 2048)
         
         for i in range(num_blocks):
             block = data[2048*i:2048*(i+1)]
-            print ("Writing Block " +str(i+1) +" of " + str(num_blocks))
+            print("Writing Block " +str(i+1) +" of " + str(num_blocks))
             if i == num_blocks - 1 and len(block) != 2048:
                 # The final block isn't 2048 bytes long, so pad if necessary
-                print ("Added " + str(2048-len(block)) + " pad bytes")
+                print("Added " + str(2048-len(block)) + " pad bytes")
                 block += b"\x00" * (2048-len(block))
-            #Write block to the radio
             port.write(block)
 
             bytes = port.read(3) #Check this says "kyd"
             if bytes.decode('ascii') == "kyd":
-                #print ("OK")
-                kyd = "OK"
+                pass
             else:
-                debugMsg(0, "Unexpected response from radio - " + bytes.decode('ascii'))
-                raise RunTimeException("Unexpected response")
+                print("Unexpected Response From Radio")
+                sys.exit(2)
         bytes = port.read(8)
-        #print(bytes)
         if bytes[0:8].decode('ascii') == "Checksum":
             #Seems it worked, there always seem to be messages about flash errors even with the proper SW :-O
-            print ("Firmware Upload Complete")
+            print("Firmware Upload Complete")
         else:
-            print (bytes)
-            #raise RunTimeException("Unexpected response from radio - " + bytes.decode('ascii'))
+            print("Unexpected Response From Radio - May be normal - Firmware upload is not perfect :)")
+            sys.exit(5)
 
 
 def debugMsg(level, message):
@@ -984,11 +1079,15 @@ elif platform.system() == "Windows":
 parser = argparse.ArgumentParser(
     description = "Retevis RT73 codeplug/firmware upgrade tool, GNU GPL v3 or later, (C) 2020-21 David Pye davidmpye@gmail.com"
 )
-parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin", "decompile_bin"], help='''upload - Compile and upload a JSON-formatted file to the radio,
-download - Download and convert the radio's codeplug to a JSON-formatted file,
-flash_fw - Upgrade the radio's firmware (radio must be powered on while pressing P1 and be displaying a grey screen before upload)''')
+parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin", "decompile_bin", "upload_dmrid"], help=
+    "upload - Compile and upload a JSON-formatted file to the radio,\n"+
+    "download - Download and convert the radio's codeplug to a JSON-formatted file,"+
+    "flash_fw - Upgrade the radio's firmware (radio must be powered on while pressing P1 and be displaying a grey screen before upload),"+
+    "upload_dmrid - Upload Ham Contacts to the radio, file must be in RadioID.net CSV format and specify type with --dmridtype {16 or 128}")
+        
 parser.add_argument("filename", type=str, help="Filename to upload, or to save")
 
+parser.add_argument('--dmridtype', type = int, choices=[16,128], help="Ham Contacts Bytes (16 or 128)")
 parser.add_argument('--device', default = default_serial_device, help = "Specify device to use (default COM1 on Windows, default /dev/ttyUSB0 on Linux")
 parser.add_argument('--debuglevel', default=[0], type = int, nargs = 1, help="Debug level (0 = default, 4 = max)")
 args = parser.parse_args()
@@ -1006,8 +1105,6 @@ elif args.action == "upload":
     input = f.read()
     data = compileCodeplug(input)
     f.close()
-    #ff = open("temp.bin", 'wb')
-    #ff.write(data)
     uploadCodeplug(args.device, data)
 elif args.action == "flash_fw":
     f = open(args.filename,'rb')
@@ -1027,3 +1124,5 @@ elif args.action == "decompile_bin":
     f.close()
     ff = open(args.filename[:-4]+".json", 'w')
     ff.write(data)
+elif args.action == "upload_dmrid":
+    uploadHamContacts(args.device, args.filename, args.dmridtype)
