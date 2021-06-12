@@ -944,24 +944,20 @@ def uploadHamContacts(serialdevice, csvfile, contactbytes):
             else:
                 CONTACT_INFO.append(row['CALLSIGN']+","+row['FIRST_NAME']+","+row['CITY']+","+row['STATE']+","+row['COUNTRY'])
     
-    contact_bytes = contactbytes
     contactcount = len(RADIO_ID)
-    contact_bin_size = contact_bytes * contactcount
-    template = bytearray(b"\x00" * contact_bytes)
+    template = bytearray(b"\x00" * contactbytes)
 
     for i in range(len(RADIO_ID)):
-        template[contact_bytes*i:contact_bytes*i+2] = RADIO_ID[i].to_bytes(length=3, byteorder='little')
-        template[contact_bytes*i+3:] = CONTACT_INFO[i].encode('ascii', 'ignore')
+        template[contactbytes*i:contactbytes*i+2] = RADIO_ID[i].to_bytes(length=3, byteorder='little')
+        template[contactbytes*i+3:] = CONTACT_INFO[i].encode('ascii', 'ignore')
 
-        size = len(template[contact_bytes*i:contact_bytes*i+contact_bytes])
-        if size % contact_bytes != 0:
-            template[contact_bytes*i:contact_bytes*i+contact_bytes] += (b"\x00" * (contact_bytes - (size%contact_bytes)))
+        size = len(template[contactbytes*i:contactbytes*i+contactbytes])
+        if size % contactbytes != 0:
+            template[contactbytes*i:contactbytes*i+contactbytes] += (b"\x00" * (contactbytes - (size%contactbytes)))
             
     if len(template) % 2048 != 0:
-        template[len(template):contact_bin_size] = (b"\x00" * (2048 - (len(template)%2048)))
+        template[len(template):] = (b"\x00" * (2048 - (len(template)%2048)))
 
-    f = open('128', 'wb')
-    f.write(template)
     print("Uploading " + str(contactcount) + " Contacts (" + str(contactbytes) + "bytes)")
 
     block_count = int (len(template) / 2048)
@@ -1002,7 +998,7 @@ def uploadHamContacts(serialdevice, csvfile, contactbytes):
             bytes = port.read(5)
             if bytes[0:6].decode('ascii') == "Write":
                 pass
-            elif bytes[0:6].decode('ascii') == "Check":# and i == block_count-1:
+            elif bytes[0:6].decode('ascii') == "Check":
                 print("Upload Complete...")
             else:
                 print("Unexpected Response From Radio")
