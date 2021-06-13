@@ -1015,33 +1015,33 @@ def uploadFirmware(serialdevice, data):
             port.Open()
             
         print("Starting Firmware Upload Process")
+
+        size = len(data)
+        if size % 2048 != 0:
+            data += (b"\x00" * (2048 - (size%2048)))
+            
+        num_blocks = int(len(data) / 2048)
+        
         port.write("Erase".encode('ascii'))
+        port.write(b"\x20\x20\x20\x20\x20\x20\x00\x00\x00\x00\x00\x00")
+        port.write((num_blocks-1).to_bytes(length=2, byteorder='big'))
         
-        num_blocks = math.ceil(len(data) / 2048)
         
-        port.write(b"\x20\x20\x20\x20\x20\x20\x00\x00\x00\x00\x00\x00") # \x01\x87")
-        port.write((num_blocks-1).to_bytes(length=2, byteorder='little'))
-        
-        #Should be "Erase ok"
-        bytes = port.read(41)
+        bytes = port.read(33) #IAP Ver and Date ?
+        bytes = port.read(8) #Should be "Erase ok"
         if len(bytes) <= 1:
             print("Timeout: Empty Response...")
             sys.exit(1)
-        elif bytes[33:].decode('ascii') == "Erase ok":
+        elif bytes.decode('ascii') == "Erase ok":
             print("Erase OK - Begin Writing")
         else:
             print("Unexpected Response From Radio")
             sys.exit(2)
-
-        num_blocks = math.ceil(len(data) / 2048)
         
         for i in range(num_blocks):
             block = data[2048*i:2048*(i+1)]
-            print("Writing Block " +str(i+1) +" of " + str(num_blocks))
-            if i == num_blocks - 1 and len(block) != 2048:
-                # The final block isn't 2048 bytes long, so pad if necessary
-                print("Added " + str(2048-len(block)) + " pad bytes")
-                block += b"\x00" * (2048-len(block))
+            print("Writing Block " +str(i+1) + " of " + str(num_blocks))
+            
             port.write(block)
 
             bytes = port.read(3) #Check this says "kyd"
@@ -1050,13 +1050,13 @@ def uploadFirmware(serialdevice, data):
             else:
                 print("Unexpected Response From Radio")
                 sys.exit(2)
-        bytes = port.read(8)
+        bytes = port.read(13)
         if bytes[0:8].decode('ascii') == "Checksum":
-            #Seems it worked, there always seem to be messages about flash errors even with the proper SW :-O
-            print("Firmware Upload Complete")
+            pass #Update Complete
         else:
             print("Unexpected Response From Radio - May be normal - Firmware upload is not perfect :)")
             sys.exit(5)
+    print("Firmware Upload Complete")
 
 
 def debugMsg(level, message):
