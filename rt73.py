@@ -46,8 +46,10 @@ import serial
 import argparse
 import platform
 import math
-import ctypes
-ctypes.windll.kernel32.SetConsoleTitleW("Retevis RT73 Codeplug/Firmware Tool by David M0DMP")
+
+if platform.system() == "Windows":
+    import ctypes
+    ctypes.windll.kernel32.SetConsoleTitleW("Retevis RT73 Codeplug/Firmware Tool by David M0DMP")
 
 ######################
 ######Exit Code Status
