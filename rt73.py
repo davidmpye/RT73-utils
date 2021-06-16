@@ -220,7 +220,7 @@ basic_parameters["Radio name"] = [ "String", 0x80, 10]
 basic_parameters["DMR ID"] = [ "Number", 0x90, 3]
 
 basic_parameters["Language"] = [ "Bitmask", 0x95, 0x10, {0x00: "Chinese", 0x10: "English"}]
-basic_parameters["TimeoutTimer"] = [ "MaskNum", 0x134F, 0x32, lambda x: x*10, lambda x: int(x/10) ]  
+basic_parameters["TimeoutTimer"] = [ "Number", 0x134F, 1]
 basic_parameters["Busy channel lockout"] = [ "Bitmask", 0xA6, 0x80, {0x00: "Off", 0x80: "On"}]
 basic_parameters["VOX"] = [ "Bitmask", 0xA6, 0x40, {0x00: "Off", 0x40: "On"}]
 basic_parameters["VOX sensitivity"] = [ "MaskNum", 0xA6, 0x0F, lambda x:x+1, lambda x: x-1]
