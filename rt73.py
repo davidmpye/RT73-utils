@@ -35,7 +35,7 @@ __maintainer__ = "David Pye"
 __status__ = "Beta"
 __version__ = "0.0.2"
 
-__contributions__ = "Dave MM7DBT - DMR ID Database Upload Added :)"
+__contributions__ = "Dave MM7DBT - Ham Contacts, Ham Groups"
 
 import struct
 import sys
@@ -50,16 +50,19 @@ import math
 if platform.system() == "Windows":
     import ctypes
     ctypes.windll.kernel32.SetConsoleTitleW("Retevis RT73 Codeplug/Firmware Tool by David M0DMP")
+    
 
-######################
-######Exit Code Status
-######Code 0 - Success
-######Code 1 - No response from radio (can't connect)
-######Code 2 - Unknown response from radio
-######Code 3 - Codeplug too large >255 pages
-######Code 4 - Codeplug size was incorrect when compiled
-######Code 5 - Firmware Failed - Possibly still updated succesfully though
-#####################
+###Exit Code Status
+###Code 0 - Success
+###Code 1 - No response from radio (can't connect)
+###Code 2 - Unknown response from radio
+###Code 3 - Codeplug too large >255 pages
+###Code 4 - Codeplug size was incorrect when compiled
+###Code 5 - Firmware Failed - Possibly still updated succesfully though
+###Code 6 - Ham Contacts Bytes argument invalid - Not 16 or 128
+###Code 7 - Ham Contacts block to large - Too many contacts
+###Code 8 - Ham Groups block too large - Too many groups
+
 
 #Record sizes (bytes)
 channel_record_size = 32 
@@ -169,6 +172,11 @@ class Parser:
                 # If any lambda encode function defined, perform it.
                 if len(definition) >3 : 
                     val = definition[3](val)
+            elif definition[0] == "Float":
+                temp = bytearray(bytes[definition[1]: definition[1] + definition[2]])
+                x = struct.unpack('<f',temp)
+                y = float(x[0])
+                val = y
 
             data[key] = val
 
@@ -193,6 +201,8 @@ class Parser:
                     data[definition[1]] |=  ( int(definition[4](item[key])) & definition[2])
                 else:
                     data[definition[1]] |= (int(item[key]) & definition[2])
+            elif definition[0] == "Float":
+                data[definition[1]] = struct.pack('<f',value)
 
 #Device info
 dev_info = {}
@@ -392,8 +402,8 @@ aprs_parameters["Manual TX interval"] = ["Number", 0xE8B, 1 ]
 #Seconds * 30
 aprs_parameters["Auto TX interval"] = [ "MaskNum", 0xE8C, 0xFF, lambda x: x*30, lambda x: int(x/30)  ]
 aprs_parameters["Beacon"] = [ "Bitmask", 0xE8E, 0x01, { 0x00: "FIXED_LOCATION", 0x01: "GPS_LOCATION" } ]
-#aprs_parameters["Lat (degrees)"] = []
-#aprs_parameters["Long (degrees)"] = []
+#aprs_parameters["Lat (degrees)"] = ["Float", 0xE90, 4 ]
+#aprs_parameters["Long (degrees)"] = ["Float", 0xE94, 4 ]
 
 aprs_parameters["AX25 TX Freq"] = [ "Number", 0xE99, 3 ]
 aprs_parameters["AX25 TX Power"] = [ "Bitmask", 0xEA1, 0x01, { 0x00: "LOW", 0x01 : "HIGH" } ]
@@ -465,29 +475,29 @@ zone_info["Name"] = [ "String", 0x03, 10 ]
 channel_info = {}
 # NB These are relative to the zone record bytes, not the whole codeplug.
 #Structure: Human readable name: Type,  byte offset, length (mask if bitmask), ( enum values if bitmask)
-channel_info["ID"] =  ["Number", 0x00, 2  ]
+channel_info["ID"] = ["Number", 0x00, 2  ]
 channel_info["Type"] = ["Bitmask", 0x14, 0xC0, { 0x00: "ANALOG",  0x40: "DIGITAL",  0x80: "D_A_TX_A",  0xC0: "D_A_TX_D" } ]
-channel_info["Name"] =  ["String", 0x02, 10 ]
-channel_info["Rx Freq"] =  ["Number", 0x0C, 4  ]
+channel_info["Name"] = ["String", 0x02, 10 ]
+channel_info["Rx Freq"] = ["Number", 0x0C, 4  ]
 channel_info["Tx Freq"] = ["Number", 0x10, 4  ]
-channel_info["Tx Power"] =  [ "Bitmask", 0x14, 0x20, { 0x00: "LOW", 0x20: "HIGH" }]
+channel_info["Tx Power"] = [ "Bitmask", 0x14, 0x20, { 0x00: "LOW", 0x20: "HIGH" }]
 channel_info["Rx only"] = [ "Bitmask", 0x19, 0x10, { 0x00: "OFF", 0x10: "ON" }]
-channel_info["Alarm"]= [ "Bitmask", 0x14, 0x08, { 0x00: "OFF", 0x08: "ON" }]
+channel_info["Alarm"] = [ "Bitmask", 0x14, 0x08, { 0x00: "OFF", 0x08: "ON" }]
 channel_info["Prompt"] = [ "Bitmask", 0x14, 0x08 , { 0x00: "OFF", 0x08: "ON" } ]
 channel_info["PCT"] = [ "Bitmask", 0x14, 0x02, { 0x00: "PATCS", 0x02: "OACSU" }]
-channel_info["TS Rx"]=  [ "Bitmask", 0x14, 0x01, { 0x00: "TS1", 0x01: "TS2" } ]
-channel_info["TS Tx"] =[ "Bitmask", 0x1D, 0x02, { 0x00: "TS1", 0x02: "TS2" } ]
+channel_info["TS Rx"] = [ "Bitmask", 0x14, 0x01, { 0x00: "TS1", 0x01: "TS2" } ]
+channel_info["TS Tx"] = [ "Bitmask", 0x1D, 0x02, { 0x00: "TS1", 0x02: "TS2" } ]
 channel_info["RX CC"] = ["MaskNum", 0x15, 0x0F]
 channel_info["TX CC"] = ["MaskNum", 0x1D, 0xF0, lambda x: x>>4, lambda x: x<<4]
-channel_info["MSG Type"] =  [ "Bitmask", 0x15, 0x10, { 0x00: "UNCONFIRMED", 0x10: "CONFIRMED" }]
-channel_info["TX Policy"] =  [ "Bitmask", 0x15, 0xC0, { 0x00: "IMPOLITE", 0x40: "POLITE_TO_CC", 0x60: "POLITE_TO_ALL" }]
-channel_info["Group call list"] =  ["Number", 0x17, 1]
+channel_info["MSG Type"] = [ "Bitmask", 0x15, 0x10, { 0x00: "UNCONFIRMED", 0x10: "CONFIRMED" }]
+channel_info["TX Policy"] = [ "Bitmask", 0x15, 0xC0, { 0x00: "IMPOLITE", 0x40: "POLITE_TO_CC", 0x60: "POLITE_TO_ALL" }]
+channel_info["Group call list"] = ["Number", 0x17, 1]
 #Encryption
-channel_info["Scan List ID"] =  [ "Number", 0x18 , 1]
+channel_info["Scan List ID"] = [ "Number", 0x18 , 1]
 # I think that Default Contact ID also uses a few bits from 0x1F..... so ignoring this will only allow a default contact from the first 255 contacts 
 # in the address book, so this needs fixing...
-channel_info["Default Contact ID"] =  ["Number", 0x1E, 1]
-channel_info["EAS"] =   [ "Bitmask", 0x19, 0x0F, { 0x00: "OFF", 0x01: "A1", 0x02: "A2", 0x03: "A3", 0x04: "A4" }]
+channel_info["Default Contact ID"] = ["Number", 0x1E, 1]
+channel_info["EAS"] =  [ "Bitmask", 0x19, 0x0F, { 0x00: "OFF", 0x01: "A1", 0x02: "A2", 0x03: "A3", 0x04: "A4" }]
 channel_info["Bandwidth"] =  [ "Bitmask", 0x14, 0x10, { 0x10: "25KHz", 0x00: "12.5KHz" } ]
 # CTCSS/DCS details
 channel_info["Tone Type Tx"] = [ "Bitmask", 0x1A, 0x0C, { 0x00: "OFF", 0x04: "CTCSS", 0x08: "DCS", 0x0C: "DCS Invert" }]
@@ -496,6 +506,10 @@ channel_info["Tone Type Rx"] = [ "Bitmask", 0x1A, 0x03, { 0x00: "OFF", 0x01: "CT
 channel_info["Tone Rx"] = [ "Number",0x1B, 1 ]
 # APRS setting
 channel_info["APRS Channel" ] = [ "MaskNum", 0x1F, 0xF0, lambda x: x>>4, lambda x: x<<4 ]
+
+tson_info = {}
+tson_info["TS Rx ON"] = [ "Bitmask", 0x1D, 0x01, { 0x00: "ON", 0x01: "OFF" } ]
+tson_info["TS Tx ON"] = [ "Bitmask", 0x1D, 0x04, { 0x00: "ON", 0x04: "OFF" } ]
 
 def decompileCodeplug(data):
     codeplug = {}
@@ -654,6 +668,31 @@ def decompileCodeplug(data):
         for i in range(num_channels):
             channel_data = data[zone_start_address + channels_offset + i*32: zone_start_address+channels_offset + (i+1)*32]
             channel = p.fromBytes(channel_info, channel_data)
+            
+            
+            ##Time Slot "ON" check
+            ##This fixes an issue with codeplugs written with this script being read with the CPS.
+            ##Where all channels would have the timeslot set to ON, this is because there are 2 bits that need set high or low 
+            ##to determing whether the timeslot is ON, plus the other 1 bit that determines the actual timeslot TS1 or TS2
+            
+            ##Here all that needs to be done is, read those 2 bits and parse whether its ON or an actual timeslot
+            ##Override the timeslot to ON if needed. It cannot be ON if it's not simplex so force it to OFF.
+            
+            #Parse this separately, no need to store it in the JSON, just makes for a confusing parameter
+            tempTSON_INFO = p.fromBytes(tson_info, channel_data)
+            
+            #If Rx and Tx frequencies are not the same, it's not simplex.. so can't have TS set to ON.. so override it to OFF
+            if channel["Rx Freq"] != channel["Tx Freq"]:
+                tempTSON_INFO["TS Rx ON"] = "OFF"
+                tempTSON_INFO["TS Tx ON"] = "OFF"
+            
+            #If Rx is ON, override the TS parameter to ON
+            if tempTSON_INFO["TS Rx ON"] == "ON":
+                channel["TS Rx"] = "ON"
+            
+            #If Tx is ON, override the TS parameter to ON
+            if tempTSON_INFO["TS Tx ON"] == "ON":
+                channel["TS Tx"] = "ON"
 
             #If CTCSS or DCS are in use, swap out the parsed 'index value' with the correct value
             #TX tones
@@ -675,7 +714,6 @@ def decompileCodeplug(data):
 
     #Jsonify it, and return it
     return json.dumps(codeplug, indent=2)
-
 
 def compileCodeplug(data):
     codeplug = json.loads(data)
@@ -835,8 +873,32 @@ def compileCodeplug(data):
             elif channel["Tone Type Rx"] != "OFF": # It's DCS or DCS Invert
                 channel["Tone Rx"] = DCS_Codes.index(channel["Tone Rx"])
             
+            ## Time Slot "ON" check
+            ## Now when we read the JSON parameters, if timeslot is set to ON then we set the bits accordingly
+            ## Again, if it's not simplex, force it to OFF
+            
+            tempTSON_INFO = {}
+            tempTSON_INFO["TS Rx ON"] = "OFF"
+            tempTSON_INFO["TS Tx ON"] = "OFF"
+            
+            # If Rx and Tx frequencies are not the same, it's not simplex.. so can't have TS set to ON.. so override it to OFF
+            if channel["Rx Freq"] != channel["Tx Freq"]:
+                tempTSON_INFO["TS Rx ON"] = "OFF"
+                tempTSON_INFO["TS Tx ON"] = "OFF"
+
+            # If Rx is ON, override the TS parameter to ON
+            if channel["TS Rx"] == "ON":
+                tempTSON_INFO["TS Rx ON"] = "ON"
+            
+            # If Tx is ON, override the TS parameter to ON
+            if channel["TS Tx"] == "ON":
+                tempTSON_INFO["TS Tx ON"] = "ON"
+                
             channel_record = bytearray(channel_record_size)
             p.toBytes(channel_record,channel_info, channel)
+            
+            # Now parse it to bytes, after the rest of the channel record is parsed, should only change the 2 bits needed
+            p.toBytes(channel_record,tson_info, tempTSON_INFO)
         
             template[channel_start_address + (channel_record_size * count) : channel_start_address + (channel_record_size * (count + 1))] = channel_record
             count = count + 1
@@ -881,7 +943,6 @@ def downloadCodeplug(serialdevice):
             plug += port.read(2048)
     print("Download Complete...")
     return plug
-
 
 def uploadCodeplug(serialdevice, data):
     #Pad the data to a multiple of 2048 bytes.
@@ -931,7 +992,6 @@ def uploadCodeplug(serialdevice, data):
                 sys.exit(2)
     print("Upload Complete...")                                
 
-
 def uploadHamContacts(serialdevice, csvfile, contactbytes):
 
     RADIO_ID = []
@@ -947,24 +1007,25 @@ def uploadHamContacts(serialdevice, csvfile, contactbytes):
                 CONTACT_INFO.append(row['CALLSIGN']+","+row['FIRST_NAME']+","+row['CITY']+","+row['STATE']+","+row['COUNTRY'])
     
     contactcount = len(RADIO_ID)
-    template = bytearray(b"\x00" * contactbytes)
+    hamcontacts = bytearray(b"\x00" * contactbytes)
 
-    for i in range(len(RADIO_ID)):
-        template[contactbytes*i:contactbytes*i+2] = RADIO_ID[i].to_bytes(length=3, byteorder='little')
-        template[contactbytes*i+3:] = CONTACT_INFO[i].encode('ascii', 'ignore')
+    for i in range(contactcount):
+        hamcontacts[contactbytes*i:contactbytes*i+2] = RADIO_ID[i].to_bytes(length=3, byteorder='little')
+        hamcontacts[contactbytes*i+3:] = CONTACT_INFO[i].encode('ascii', 'ignore')
 
-        size = len(template[contactbytes*i:contactbytes*i+contactbytes])
+        size = len(hamcontacts[contactbytes*i:contactbytes*i+contactbytes])
         if size % contactbytes != 0:
-            template[contactbytes*i:contactbytes*i+contactbytes] += (b"\x00" * (contactbytes - (size%contactbytes)))
+            hamcontacts[contactbytes*i:contactbytes*i+contactbytes] += (b"\x00" * (contactbytes - (size%contactbytes)))
             
-    if len(template) % 2048 != 0:
-        template[len(template):] = (b"\x00" * (2048 - (len(template)%2048)))
+    if len(hamcontacts) % 2048 != 0:
+        hamcontacts[len(hamcontacts):] = (b"\x00" * (2048 - (len(hamcontacts)%2048)))
 
     print("Uploading " + str(contactcount) + " Contacts (" + str(contactbytes) + "bytes)")
 
-    block_count = int (len(template) / 2048)
-    #if block_count > 0x30D4:
-    #    raise RunTimeException("DMR Database Too Large") #Need to work out maximum block count - possibly 18750 (300k contacts of 128 bytes)
+    block_count = int (len(hamcontacts) / 2048)
+    if block_count > 0x493E:
+        print("Too Many Ham Contacts - 300,000 max")
+        sys.exit(7)
     
     response = b""
     response += bytearray("Flash Write".encode('ascii')) 
@@ -983,30 +1044,97 @@ def uploadHamContacts(serialdevice, csvfile, contactbytes):
         if (port.isOpen() == False):
             port.Open()
     
-        port.write(response)
+        port.write(writecommand)
         bytes = port.read(93)
         if len(bytes) <= 1:
             print("Timeout: Empty Response...")
             sys.exit(1)
-        else:
+        elif bytes[2:7].decode('ascii') == "Write":
             print("Success: Begin Upload...")
-        print("Writing " + str(block_count) + " Blocks")
-        if bytes[2:7].decode('ascii') != "Write":
+            print("Writing " + str(block_count) + " Blocks")
+            for i in range(block_count):
+                print("Writing Block " + str(i+1) + " of " + str(block_count))
+                port.write(hamcontacts[2048*i:2048*(i+1)])
+                bytes = port.read(5)
+                if bytes[0:6].decode('ascii') == "Write":
+                    pass
+                elif bytes[0:6].decode('ascii') == "Check":
+                    print("Upload Complete...")
+                else:
+                    print("Unexpected Response From Radio")
+                    sys.exit(2)
+        else:
             print("Unexpected Response From Radio")
             sys.exit(2)
-        for i in range(block_count):
-            print("Writing Block " + str(i+1) + " of " + str(block_count))
-            port.write(template[2048*i:2048*(i+1)])
-            bytes = port.read(5)
-            if bytes[0:6].decode('ascii') == "Write":
-                pass
-            elif bytes[0:6].decode('ascii') == "Check":
-                print("Upload Complete...")
-            else:
-                print("Unexpected Response From Radio")
-                sys.exit(2)
-    print("Upload Complete...")      
 
+def uploadHamGroups(serialdevice, csvfile):
+
+    GROUP_ID = []
+    GROUP_NAME = []
+
+    with open(csvfile, 'r', encoding="ascii", errors="surrogateescape") as csv_file:
+        csv_reader = csv.DictReader(csv_file, delimiter=',')
+        for row in csv_reader:
+            GROUP_ID.append(int(row['GROUP_ID']))
+            GROUP_NAME.append(row['GROUP_NAME'])
+    
+    groupcount = len(GROUP_ID)
+    hamgroups = bytearray(b"\x00" * 16)
+
+    for i in range(groupcount):
+        hamgroups[16*i:16*i+2] = GROUP_ID[i].to_bytes(length=3, byteorder='little')
+        hamgroups[16*i+3:] = GROUP_NAME[i].encode('ascii', 'ignore')
+
+        size = len(hamgroups[16*i:16*i+16])
+        if size % 16 != 0:
+            hamgroups[16*i:16*i+16] += (b"\x00" * (16 - (size%16)))
+            
+    if len(hamgroups) % 2048 != 0:
+        hamgroups[len(hamgroups):] = (b"\x00" * (2048 - (len(hamgroups)%2048)))
+
+    print("Uploading " + str(groupcount) + " Ham Groups")
+
+    block_count = int(len(hamgroups) / 2048)
+    if block_count > 0xEB:
+        print("Too Many Ham Groups - 30,000 max")
+        sys.exit(8)
+    
+    writecommand = bytearray("Flash Write".encode('ascii')) 
+    writecommand += b'\x82\x98\x00\x00\x00\x00'
+    writecommand += bytearray(block_count.to_bytes(2, 'big')) #block count
+    writecommand += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x2B\x10\x2B\x00'
+    writecommand += bytearray(groupcount.to_bytes(3, 'big')) #contact count
+
+    with serial.Serial(serialdevice) as port:
+        port.baudrate = 115200
+        port.timeout = 10
+        print("Establishing Connection To Radio...")
+        
+        if (port.isOpen() == False):
+            port.Open()
+    
+        port.write(writecommand)
+        bytes = port.read(93)
+        if len(bytes) <= 1:
+            print("Timeout: Empty Response...")
+            sys.exit(1)
+        elif bytes[2:7].decode('ascii') == "Write":
+            print("Success: Begin Upload...")
+            print("Writing " + str(block_count) + " Blocks")
+            for i in range(block_count):
+                print("Writing Block " + str(i+1) + " of " + str(block_count))
+                port.write(hamgroups[2048*i:2048*(i+1)])
+                bytes = port.read(5)
+                if bytes[0:6].decode('ascii') == "Write":
+                    pass
+                elif bytes[0:6].decode('ascii') == "Check":
+                    print("Upload Complete...")
+                else:
+                    print("Unexpected Response From Radio")
+                    sys.exit(2)
+        else:
+            print("Unexpected Response From Radio")
+            sys.exit(2)
 
 def uploadFirmware(serialdevice, data):
     with serial.Serial(serialdevice) as port:
@@ -1060,7 +1188,6 @@ def uploadFirmware(serialdevice, data):
             sys.exit(5)
     print("Firmware Upload Complete")
 
-
 def debugMsg(level, message):
     if level <= debug_level:
         print(message)
@@ -1077,15 +1204,17 @@ elif platform.system() == "Windows":
 parser = argparse.ArgumentParser(
     description = "Retevis RT73 codeplug/firmware upgrade tool, GNU GPL v3 or later, (C) 2020-21 David Pye davidmpye@gmail.com"
 )
-parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin", "decompile_bin", "upload_dmrid"], help=
-    "upload - Compile and upload a JSON-formatted file to the radio,\n"+
+parser.add_argument('action', type = str, choices=["upload", "download", "flash_fw", "download_bin", "upload_bin", "decompile_bin", "upload_hamcontacts", "upload_hamgroups"], help=
+    "upload - Compile and upload a JSON-formatted file to the radio,"+
     "download - Download and convert the radio's codeplug to a JSON-formatted file,"+
     "flash_fw - Upgrade the radio's firmware (radio must be powered on while pressing P1 and be displaying a grey screen before upload),"+
-    "upload_dmrid - Upload Ham Contacts to the radio, file must be in RadioID.net CSV format and specify type with --dmridtype {16 or 128}")
-        
+    "upload_hamcontacts - Upload Ham Contacts to the radio, file must be in RadioID.net CSV format and specify type with --contactbytes {16 or 128}"+
+    "upload_hamgroups - Upload Ham Groups to the radio, file must be in CSV format with headers 'GROUP_NAME' & 'GROUP_ID'")
+
 parser.add_argument("filename", type=str, help="Filename to upload, or to save")
 
-parser.add_argument('--dmridtype', type = int, choices=[16,128], help="Ham Contacts Bytes (16 or 128)")
+parser.add_argument('--contactbytes', default=0, type = int, choices=[16,128], help="Ham Contacts Bytes (16 or 128)")
+
 parser.add_argument('--device', default = default_serial_device, help = "Specify device to use (default COM1 on Windows, default /dev/ttyUSB0 on Linux")
 parser.add_argument('--debuglevel', default=[0], type = int, nargs = 1, help="Debug level (0 = default, 4 = max)")
 args = parser.parse_args()
@@ -1122,5 +1251,10 @@ elif args.action == "decompile_bin":
     f.close()
     ff = open(args.filename[:-4]+".json", 'w')
     ff.write(data)
-elif args.action == "upload_dmrid":
-    uploadHamContacts(args.device, args.filename, args.dmridtype)
+elif args.action == "upload_hamcontacts":
+    if args.contactbytes == 0:
+        print("Missing Argument '--contactbytes {16 or 128}")
+        sys.exit(6)
+    uploadHamContacts(args.device, args.filename, args.contactbytes)
+elif args.action == "upload_hamgroups":
+    uploadHamGroups(args.device, args.filename)
