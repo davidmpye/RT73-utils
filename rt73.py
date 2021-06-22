@@ -1048,14 +1048,14 @@ def uploadHamContacts(serialdevice, csvfile, contactbytes):
         print("Too Many Ham Contacts - 300,000 max")
         sys.exit(7)
     
-    response = b""
-    response += bytearray("Flash Write".encode('ascii')) 
-    response += b'\x81\x10\x00\x00\x00\x00'
-    response += bytearray(block_count.to_bytes(2, 'big')) #block count
-    response += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x2B'
-    response += bytearray(contactbytes.to_bytes(1, 'little')) # 16 or 128
-    response += b'\x2B\x00'
-    response += bytearray(contactcount.to_bytes(3, 'big')) #contact count
+    writecommand = b""
+    writecommand += bytearray("Flash Write".encode('ascii')) 
+    writecommand += b'\x81\x10\x00\x00\x00\x00'
+    writecommand += bytearray(block_count.to_bytes(2, 'big')) #block count
+    writecommand += b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x2B'
+    writecommand += bytearray(contactbytes.to_bytes(1, 'little')) # 16 or 128
+    writecommand += b'\x2B\x00'
+    writecommand += bytearray(contactcount.to_bytes(3, 'big')) #contact count
 
     with serial.Serial(serialdevice) as port:
         port.baudrate = 115200
