@@ -62,6 +62,8 @@ if platform.system() == "Windows":
 ###Code 6 - Ham Contacts Bytes argument invalid - Not 16 or 128
 ###Code 7 - Ham Contacts block to large - Too many contacts
 ###Code 8 - Ham Groups block too large - Too many groups
+###
+###Code 9 - COM Port In Use
 
 
 #Record sizes (bytes)
@@ -99,7 +101,7 @@ aprs_dmr_channel_start_address = 0x0000E4B
 #List of the CTCSS tones used
 CTCSS_Tones = [ 62.5, 67.0, 69.3, 71.9, 74.4, 77.0, 79.7, 82.5, 85.4, 88.5, 91.5, 94.8, 97.4, 100.0, 103.5, 107.2, 110.9, 114.8, 118.8, 
         123.0, 127.3, 131.8, 136.5, 141.3, 146.2, 151.4, 156.7, 159.8, 162.2, 165.5, 167.9, 171.3, 173.8, 177.3, 179.9, 183.5, 186.2, 
-        189.9, 192.8, 196.6, 199.5, 203.5, 2096.5, 210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1 ]
+        189.9, 192.8, 196.6, 199.5, 203.5, 206.5, 210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1 ]
 
 #List of the DCS tones used - the CPS UI displays an N (normal) or I (Inverted) at the end, depending on whether normal or inverted mode is selected.
 DCS_Codes = [
@@ -172,11 +174,6 @@ class Parser:
                 # If any lambda encode function defined, perform it.
                 if len(definition) >3 : 
                     val = definition[3](val)
-            elif definition[0] == "Float":
-                temp = bytearray(bytes[definition[1]: definition[1] + definition[2]])
-                x = struct.unpack('<f',temp)
-                y = float(x[0])
-                val = y
 
             data[key] = val
 
@@ -201,8 +198,6 @@ class Parser:
                     data[definition[1]] |=  ( int(definition[4](item[key])) & definition[2])
                 else:
                     data[definition[1]] |= (int(item[key]) & definition[2])
-            elif definition[0] == "Float":
-                data[definition[1]] = struct.pack('<f',value)
 
 #Device info
 dev_info = {}
@@ -311,6 +306,7 @@ common_menu_parameters["FM radio"] = [ "Bitmask", 0xB7, 0x04, {0x00: "Off", 0x04
 common_menu_parameters["Time"] = [ "Bitmask", 0xB7, 0x08, {0x00: "Off", 0x08: "On"}]
 common_menu_parameters["DTMF"] = [ "Bitmask", 0xB7, 0x10, {0x00: "Off", 0x10: "On"}]
 common_menu_parameters["Speaker handmic"] = [ "Bitmask", 0xB7, 0x20, {0x00: "Off", 0x20: "On"}]
+common_menu_parameters["APRS"] = [ "Bitmask", 0xB7, 0x40, {0x00: "Off", 0x40: "On"}]
 
 common_menu_parameters["Record set"] = [ "Bitmask", 0xB8, 0x01, {0x00: "Off", 0x01: "On"}]
 common_menu_parameters["Record list"] = [ "Bitmask", 0xB8, 0x02, {0x00: "Off", 0x02: "On"}]
@@ -349,6 +345,7 @@ indicator_parameters["Low battery"] = ["Bitmask", 0xAD, 0x01, {0x01: "On", 0x00:
 
 #Button presets
 button_preset_parameters = {}
+button_preset_parameters["LongPressDuration"] = ["Bitmask", 0xC1, 0xFF, {0x00: "0.5", 0x01: "1.0", 0x02: "1.5", 0x03: "2.0", 0x04: "2.5", 0x05: "3.0", 0x06: "3.5", 0x07: "4.0", 0x08: "4.5", 0x09: "5.0"}]
 button_preset_parameters["P1 LongPress"] = [ "Bitmask", 0xC2, 0xFF, Button_IDs]
 button_preset_parameters["P1 ShortPress"] = [ "Bitmask", 0xC3, 0xFF, Button_IDs]
 button_preset_parameters["P2 LongPress"] = [ "Bitmask", 0xC4, 0xFF, Button_IDs]
@@ -403,14 +400,19 @@ aprs_parameters["Manual TX interval"] = ["Number", 0xE8B, 1 ]
 #Seconds * 30
 aprs_parameters["Auto TX interval"] = [ "MaskNum", 0xE8C, 0xFF, lambda x: x*30, lambda x: int(x/30)  ]
 aprs_parameters["Beacon"] = [ "Bitmask", 0xE8E, 0x01, { 0x00: "FIXED_LOCATION", 0x01: "GPS_LOCATION" } ]
-#aprs_parameters["Lat (degrees)"] = ["Float", 0xE90, 4 ]
-#aprs_parameters["Long (degrees)"] = ["Float", 0xE94, 4 ]
 
-aprs_parameters["AX25 TX Freq"] = [ "Number", 0xE99, 3 ]
+#Fixed Location is stored in 4 bytes, int32: Translates to Degrees Minutes Seconds: 5606470 = (D)56 (M)06 (S)470
+aprs_parameters["LatNS"] = [ "Bitmask", 0xE8F, 0x01, { 0x00: "North", 0x01: "South" } ]
+aprs_parameters["Lat Degrees"] = ["Number", 0xE91, 4 ]
+
+aprs_parameters["LongEW"] = [ "Bitmask", 0xE90, 0x01, { 0x00: "East", 0x01: "West" } ]
+aprs_parameters["Long Degrees"] = ["Number", 0xE95, 4 ]
+
+#TX Freq does use 4 bytes after FF FF FF (16777215), although typically used on 2 meters, setting the 4 bytes would allow frequencies at 70cm.
+aprs_parameters["AX25 TX Freq"] = [ "Number", 0xE99, 4 ]
 aprs_parameters["AX25 TX Power"] = [ "Bitmask", 0xEA1, 0x01, { 0x00: "LOW", 0x01 : "HIGH" } ]
 
-#Not yet parsed this properly
-#aprs_parameters["AX25 QT/DQT"] = [ "Number", 0xE9D, 1  ]
+aprs_parameters["AX25 QT/DQT"] = [ "Number", 0xE9D, 2  ]
 
 aprs_parameters["AX25 APRS Tone"] = [ "Bitmask", 0xEA2, 0x01, { 0x00: "OFF", 0x01: "ON" } ]
 #TX delay in 20ms increments
@@ -564,8 +566,17 @@ def decompileCodeplug(data):
     debugMsg(2, "Parsing APRS settings")
     codeplug["APRS"] = p.fromBytes(aprs_parameters, data) 
     
-    #The user needs to not see the yuck that storing this in 3 bytes causes...
-    codeplug["APRS"]["AX25 TX Freq"] =  codeplug["APRS"]["AX25 TX Freq"] * 10
+    codeplug["APRS"]["AX25 TX Freq"] = codeplug["APRS"]["AX25 TX Freq"] * 10
+
+
+    if 159 <= codeplug["APRS"]["AX25 QT/DQT"] <= 267: #DCS Invert
+        codeplug["APRS"]["AX25 QT/DQT"] = "D" + str(DCS_Codes[(codeplug["APRS"]["AX25 QT/DQT"]-160)]).zfill(3) + "I"
+    elif 52 <= codeplug["APRS"]["AX25 QT/DQT"] <= 158: #DCS Normal
+        codeplug["APRS"]["AX25 QT/DQT"] = "D" + str(DCS_Codes[(codeplug["APRS"]["AX25 QT/DQT"]-53)]).zfill(3) + "N"
+    elif 1 <= codeplug["APRS"]["AX25 QT/DQT"] <= 51: #CTCSS
+        codeplug["APRS"]["AX25 QT/DQT"] = str(CTCSS_Tones[codeplug["APRS"]["AX25 QT/DQT"]])
+    else:
+        codeplug["APRS"]["AX25 QT/DQT"] = "Off"
 
     debugMsg(2, "Parsing APRS DMR channels")
     codeplug["APRS"]["DMR channels"] = []
@@ -773,9 +784,18 @@ def compileCodeplug(data):
     p.toBytes(template,mic_gain_parameters, codeplug["Mic gain"])
     p.toBytes(template,dmr_parameters, codeplug["DMR Service"])
 
-    # This is horrid. But there are only 3 bytes allocated to freq here, not 4 as in everywhere else...
-    codeplug["APRS"]["AX25 TX Freq"] =  int(codeplug["APRS"]["AX25 TX Freq"] / 10)
+    #codeplug["APRS"]["AX25 TX Freq"] = int(codeplug["APRS"]["AX25 TX Freq"] / 10)
 
+
+    if codeplug["APRS"]["AX25 QT/DQT"] == "Off":
+        codeplug["APRS"]["AX25 QT/DQT"] = 0
+    elif codeplug["APRS"]["AX25 QT/DQT"].endswith("I"):
+        codeplug["APRS"]["AX25 QT/DQT"] = DCS_Codes.index(int(str(codeplug["APRS"]["AX25 QT/DQT"]).replace('D', '').replace('I', '')))+160
+    elif codeplug["APRS"]["AX25 QT/DQT"].endswith("N"):
+        codeplug["APRS"]["AX25 QT/DQT"] = DCS_Codes.index(int(str(codeplug["APRS"]["AX25 QT/DQT"]).replace('D', '').replace('N', '')))+53
+    else:
+        codeplug["APRS"]["AX25 QT/DQT"] = CTCSS_Tones.index(codeplug["APRS"]["AX25 QT/DQT"])
+        
     p.toBytes(template, aprs_parameters, codeplug["APRS"])
 
     #Copy the APRS DMR channels in to place.
@@ -917,10 +937,10 @@ def downloadCodeplug(serialdevice):
         port.baudrate = 115200
         port.timeout = 10
         print("Establishing Connection To Radio...")
-        
+
         if (port.isOpen() == False):
             port.Open()
-            
+    
         port.write("Flash Read ".encode('ascii'))
         port.write(b"\x00\x3c\x00\x00\x00\x00\x00\x39\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
         response = port.read(103)
@@ -929,7 +949,7 @@ def downloadCodeplug(serialdevice):
             sys.exit(1)
         else:
             print("Success: Begin Download...")
-            
+        
         if debug_level == 4:
             print("Message rx from plug download handshake:")
             print(response)
@@ -964,7 +984,8 @@ def uploadCodeplug(serialdevice, data):
         port.baudrate = 115200
         port.timeout = 10
         print("Establishing Connection To Radio...")
-        
+
+    
         if (port.isOpen() == False):
             port.Open()
             
@@ -976,7 +997,7 @@ def uploadCodeplug(serialdevice, data):
         else:
             print("Success: Begin Upload...")
         print("Writing " + str(block_count) + " Blocks")
-        
+    
         if bytes[2:7].decode('ascii') != "Write":
             print("Unexpected Response From Radio")
             sys.exit(2)
