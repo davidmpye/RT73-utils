@@ -565,7 +565,7 @@ def decompileCodeplug(data):
     debugMsg(2, "Parsing APRS settings")
     codeplug["APRS"] = p.fromBytes(aprs_parameters, data) 
     
-    codeplug["APRS"]["AX25 TX Freq"] = codeplug["APRS"]["AX25 TX Freq"] * 10
+    #codeplug["APRS"]["AX25 TX Freq"] = codeplug["APRS"]["AX25 TX Freq"] * 10
 
 
     if 159 <= codeplug["APRS"]["AX25 QT/DQT"] <= 267: #DCS Invert
