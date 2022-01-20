@@ -1021,11 +1021,8 @@ def uploadHamContacts(serialdevice, csvfile, contactbytes):
     with open(csvfile, 'r', encoding="ascii", errors="surrogateescape") as csv_file:
         csv_reader = csv.DictReader(csv_file, delimiter=',')
         for row in csv_reader:
-            RADIO_ID.append(int(row['RADIO_ID']))
-            if len(row['LAST_NAME']) > 0 and row['LAST_NAME'] != " ":
-                CONTACT_INFO.append(row['CALLSIGN']+","+row['FIRST_NAME']+" "+row['LAST_NAME']+","+row['CITY']+","+row['STATE']+","+row['COUNTRY'])
-            else:
-                CONTACT_INFO.append(row['CALLSIGN']+","+row['FIRST_NAME']+","+row['CITY']+","+row['STATE']+","+row['COUNTRY'])
+            RADIO_ID.append(int(row['Radio ID']))
+            CONTACT_INFO.append(row['Callsign']+","+row['Name']+","+row['City']+","+row['State']+","+row['Country'])
     
     contactcount = len(RADIO_ID)
     hamcontacts = bytearray(b"\x00" * contactbytes)
