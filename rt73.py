@@ -143,7 +143,7 @@ Button_IDs = {
     0x3B: "A_B_TOGGLE",
     0x3C: "VOL",
     0x3D: "VFO",
-    0x3E: "MANDATORY_MONITOR",  #aka promiscuous mode
+    0x3E: "PROMISCUOUS_MODE",  #aka promiscuous mode
     0x3F: "DUAL_WATCH_TOGGLE" 
 }
 
